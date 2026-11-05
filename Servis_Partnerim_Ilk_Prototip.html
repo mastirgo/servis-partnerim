@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#123b63">
+<title>Servis Partnerim</title>
+<style>
+:root{--navy:#123b63;--blue:#1769aa;--teal:#16a6a1;--bg:#f3f6fa;--ink:#172b3d;--muted:#657789;--line:#dce5ed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:linear-gradient(125deg,#123b63,#1769aa);color:white;padding:22px 18px 26px}
+.brand{display:flex;align-items:center;gap:12px;max-width:980px;margin:auto}.logo{width:48px;height:48px;border-radius:15px;background:#ffffff20;display:grid;place-items:center;font-size:27px}
+h1{font-size:21px;margin:0}header p{margin:4px 0 0;color:#d8e8f7;font-size:13px}
+main{max-width:980px;margin:18px auto;padding:0 14px 40px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+button,.tab{border:0;border-radius:10px;padding:11px 14px;font-weight:650;cursor:pointer;background:#e4edf5;color:var(--navy)}
+.tab.active,button.primary{background:var(--blue);color:white}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:17px;margin:12px 0;box-shadow:0 3px 12px #183c5b0a}
+h2{font-size:18px;margin:0 0 13px}h3{font-size:15px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:block;font-size:13px;font-weight:650;color:#40566b;margin-bottom:5px}
+input,select{width:100%;border:1px solid #cbd8e3;border-radius:9px;padding:11px;background:white;color:#172b3d;font:inherit}
+.field{margin-bottom:11px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button.secondary{background:#eaf1f7;color:var(--navy)}button.danger{background:#fff0ef;color:#a33}
+.stop{display:flex;gap:8px;align-items:center;margin:8px 0}.stop input{flex:1}
+.pill{display:inline-block;border-radius:30px;padding:5px 9px;font-size:12px;background:#e8f5f4;color:#087b76;font-weight:700}
+.muted{color:var(--muted);font-size:13px}.metric{font-size:25px;font-weight:800;color:var(--navy)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.person{padding:12px 0;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.person:first-of-type{border-top:0}.person small{display:block;color:var(--muted);margin-top:3px}
+.status{min-width:132px}.empty{padding:18px;text-align:center;color:var(--muted)}
+.notice{background:#fff8e8;border:1px solid #f1dfb6;color:#70551b;border-radius:10px;padding:11px;font-size:13px}
+footer{text-align:center;color:#8191a0;font-size:12px;padding:18px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.person{align-items:flex-start;flex-direction:column}.status{width:100%}.status select{width:100%}}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo">🚌</div><div><h1>Servis Partnerim</h1><p>Okul ve personel servisleri için akıllı takip</p></div></div></header>
+<main>
+<div class="tabs">
+<button class="tab active" data-tab="company">Firma paneli</button>
+<button class="tab" data-tab="driver">Şoför paneli</button>
+<button class="tab" data-tab="parent">Veli / Personel</button>
+</div>
+<section id="company" class="panel">
+<div class="card"><div class="row"><div><h2>Firma yönetim paneli</h2><div class="muted">İlk prototip • Örnek veriler bu cihazın tarayıcısında saklanır.</div></div><span class="pill">Demo</span></div>
+<div class="grid" style="margin-top:14px"><div><div class="muted">Kayıtlı durak</div><div class="metric" id="stopCount">0</div></div><div><div class="muted">Yolcu kaydı</div><div class="metric" id="personCount">0</div></div></div></div>
+<div class="card"><h2>Güzergâh oluştur</h2>
+<div class="grid">
+<div class="field"><label for="routeType">Servis türü</label><select id="routeType"><option>Okul servisi</option><option>Personel servisi</option></select></div>
+<div class="field"><label for="routeName">Güzergâh adı</label><input id="routeName" placeholder="Örn. Sabah A güzergâhı"></div>
+<div class="field"><label for="start">Başlangıç noktası</label><input id="start" placeholder="Başlangıç adresi"></div>
+<div class="field"><label for="end">Bitiş noktası</label><input id="end" placeholder="Okul / iş yeri adresi"></div>
+</div>
+<div class="field"><label>Duraklar (isimleri şoför belirleyebilir)</label><div id="stops"></div><button class="secondary" id="addStop">+ Durak ekle</button></div>
+<div class="field"><label for="km">Toplam güzergâh mesafesi (km)</label><input id="km" type="number" min="0" step="0.1" placeholder="Örn. 18,5"></div>
+<div class="notice">Bu prototipte kilometre alanı deneme amacıyla elle girilir. Sonraki geliştirme aşamasında başlangıç, duraklar ve bitiş noktaları harita/yol rotası servisiyle hesaplanacaktır.</div>
+<div class="actions"><button class="primary" id="saveRoute">Güzergâhı kaydet</button><button class="secondary" id="clearRoute">Formu temizle</button></div>
+</div>
+<div class="card"><h2>Kayıtlı güzergâhlar</h2><div id="routeList" class="muted">Henüz güzergâh eklenmedi.</div></div>
+<div class="card"><h2>Öğrenci / personel ekle</h2><div class="grid">
+<div class="field"><label for="personName">Ad soyad</label><input id="personName" placeholder="Ad soyad"></div>
+<div class="field"><label for="personStop">Bineceği durak</label><input id="personStop" placeholder="Durak adı"></div>
+<div class="field"><label for="personKind">Kayıt türü</label><select id="personKind"><option>Öğrenci</option><option>Personel</option></select></div>
+<div class="field"><label for="personRoute">Güzergâh</label><input id="personRoute" placeholder="Güzergâh adı"></div>
+</div><button class="primary" id="addPerson">Yolcu kaydet</button></div>
+</section>
+<section id="driver" class="panel" hidden>
+<div class="card"><h2>Şoför paneli</h2><p class="muted">Şoför kendi durak adlarını ekleyebilir. Günlük yolcu kullanım durumunu aşağıdan işaretleyebilir.</p>
+<div class="field"><label for="driverStop">Yeni durak adı</label><input id="driverStop" placeholder="Örn. Cumhuriyet Meydanı"></div><button class="primary" id="driverAddStop">Durağı ekle</button><div id="driverStops" style="margin-top:12px"></div></div>
+<div class="card"><h2>Günlük yolcu listesi</h2><div id="driverPeople"></div></div>
+</section>
+<section id="parent" class="panel" hidden>
+<div class="card"><h2>Veli / personel ekranı</h2><p class="muted">Kayıtlı yolcu için günlük servis kullanım durumunu seçin.</p><div id="parentPeople"></div></div>
+<div class="card"><h2>Servis bilgisi</h2><div class="notice">Canlı GPS ve tahmini varış süresi, gerçek şoför konumu ve sunucu bağlantısı eklendiğinde etkinleştirilecektir.</div></div>
+</section>
+<footer>Servis Partnerim • İlk çalışan arayüz prototipi</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const load=()=>{try{return JSON.parse(localStorage.getItem('sp_demo')||'{"routes":[],"people":[]}')}catch(e){return {routes:[],people:[]}}};
+let data=load(), stopDraft=[];
+const save=()=>{localStorage.setItem('sp_demo',JSON.stringify(data));render()};
+function addStopInput(value=''){const wrap=document.createElement('div');wrap.className='stop';const inp=document.createElement('input');inp.placeholder='Durak adı';inp.value=value;const del=document.createElement('button');del.className='danger';del.textContent='Sil';del.onclick=()=>wrap.remove();wrap.append(inp,del);$('stops').append(wrap)}
+function render(){
+$('stopCount').textContent=data.routes.reduce((n,r)=>n+r.stops.length,0);
+$('personCount').textContent=data.people.length;
+$('routeList').innerHTML=data.routes.length?data.routes.map((r,i)=>`<div class="person"><div><b>${esc(r.name)}</b><small>${esc(r.type)} • ${esc(r.start)} → ${esc(r.end)} • ${r.km||'—'} km</small><small>Duraklar: ${r.stops.map(esc).join(', ')||'Yok'}</small></div><button class="danger" onclick="deleteRoute(${i})">Sil</button></div>`).join(''):'Henüz güzergâh eklenmedi.';
+const peopleHtml=data.people.length?data.people.map((p,i)=>`<div class="person"><div><b>${esc(p.name)}</b><small>${esc(p.kind)} • ${esc(p.route||'Güzergâh belirtilmedi')} • ${esc(p.stop||'Durak belirtilmedi')}</small></div><select class="status" onchange="setStatus(${i},this.value)"><option value="yes" ${p.status!=='no'?'selected':''}>Bugün binecek</option><option value="no" ${p.status==='no'?'selected':''}>Bugün binmeyecek</option></select></div>`).join(''):'<div class="empty">Henüz yolcu kaydı yok.</div>';
+$('driverPeople').innerHTML=peopleHtml;$('parentPeople').innerHTML=peopleHtml;
+$('driverStops').innerHTML=data.routes.flatMap(r=>r.stops).map(s=>`<span class="pill" style="margin:3px">${esc(s)}</span>`).join(' ')||'<span class="muted">Henüz durak yok.</span>';
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+window.deleteRoute=i=>{if(confirm('Güzergâh silinsin mi?')){data.routes.splice(i,1);save()}};
+window.setStatus=(i,v)=>{data.people[i].status=v;localStorage.setItem('sp_demo',JSON.stringify(data));};
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!==b.dataset.tab);if(b.dataset.tab==='driver')render()});
+$('addStop').onclick=()=>addStopInput();addStopInput();
+$('saveRoute').onclick=()=>{const stops=[...$('stops').querySelectorAll('input')].map(x=>x.value.trim()).filter(Boolean);const r={type:$('routeType').value,name:$('routeName').value.trim()||'Yeni güzergâh',start:$('start').value.trim(),end:$('end').value.trim(),stops,km:$('km').value};if(!r.start||!r.end){alert('Başlangıç ve bitiş noktalarını girin.');return}data.routes.push(r);save();alert('Güzergâh kaydedildi.')};
+$('clearRoute').onclick=()=>{['routeName','start','end','km'].forEach(id=>$(id).value='');$('stops').innerHTML='';addStopInput()};
+$('addPerson').onclick=()=>{const name=$('personName').value.trim();if(!name){alert('Ad soyad girin.');return}data.people.push({name,stop:$('personStop').value.trim(),kind:$('personKind').value,route:$('personRoute').value.trim(),status:'yes'});['personName','personStop','personRoute'].forEach(id=>$(id).value='');save();alert('Yolcu kaydedildi.')};
+$('driverAddStop').onclick=()=>{const s=$('driverStop').value.trim();if(!s){alert('Durak adını girin.');return}if(!data.routes.length){alert('Önce firma panelinden bir güzergâh oluşturun.');return}data.routes[0].stops.push(s);$('driverStop').value='';save()};
+render();
+</script>
+</body></html>
