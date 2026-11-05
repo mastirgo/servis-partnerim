@@ -83,7 +83,39 @@ footer{text-align:center;color:#8191a0;font-size:12px;padding:18px}
 </div>
 <div class="card"><h2>Şoför paneli</h2><p class="muted">Şoför kendi durak adlarını ekleyebilir. Günlük yolcu kullanım durumunu aşağıdan işaretleyebilir.</p>
 <div class="field"><label for="driverStop">Yeni durak adı</label><input id="driverStop" placeholder="Örn. Cumhuriyet Meydanı"></div><button class="primary" id="driverAddStop">Durağı ekle</button><div id="driverStops" style="margin-top:12px"></div></div>
-const groups = {};
+<div class="card">
+<h2>Durak bazlı yolcu takibi</h2>
+<div id="driverStopSummary"></div>
+</div>
+<div class="card">
+<h2>Günlük yolcu listesi</h2>
+<div id="driverPeople"></div>
+</div>
+  <div class="card"><h2>Günlük yolcu listesi</h2><div id="driverPeople"></div></div>
+</section>
+<section id="parent" class="panel" hidden>
+<div class="card"><h2>Veli / personel ekranı</h2><p class="muted">Kayıtlı yolcu için günlük servis kullanım durumunu seçin.</p><div id="parentPeople"></div></div>
+<div class="card"><h2>Servis bilgisi</h2><div class="notice">Canlı GPS ve tahmini varış süresi, gerçek şoför konumu ve sunucu bağlantısı eklendiğinde etkinleştirilecektir.</div></div>
+</section>
+<footer>Servis Partnerim • İlk çalışan arayüz prototipi</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const load=()=>{try{return JSON.parse(localStorage.getItem('sp_demo')||'{"routes":[],"people":[]}')}catch(e){return {routes:[],people:[]}}};
+let data=load(), stopDraft=[];
+const save=()=>{localStorage.setItem('sp_demo',JSON.stringify(data));render()};
+function addStopInput(value=''){const wrap=document.createElement('div');wrap.className='stop';const inp=document.createElement('input');inp.placeholder='Durak adı';inp.value=value;const del=document.createElement('button');del.className='danger';del.textContent='Sil';del.onclick=()=>wrap.remove();wrap.append(inp,del);$('stops').append(wrap)}
+function render(){
+$('stopCount').textContent=data.routes.reduce((n,r)=>n+r.stops.length,0);
+$('personCount').textContent=data.people.length;
+$('routeList').innerHTML=data.routes.length?data.routes.map((r,i)=>`<div class="person"><div><b>${esc(r.name)}</b><small>${esc(r.type)} • ${esc(r.start)} → ${esc(r.end)} • ${r.km||'—'} km</small><small>Duraklar: ${r.stops.map(esc).join(', ')||'Yok'}</small></div><button class="danger" onclick="deleteRoute(${i})">Sil</button></div>`).join(''):'Henüz güzergâh eklenmedi.';
+const peopleHtml=data.people.length?data.people.map((p,i)=>`<div class="person"><div><b>${esc(p.name)}</b><small>${esc(p.kind)} • ${esc(p.route||'Güzergâh belirtilmedi')} • ${esc(p.stop||'Durak belirtilmedi')}</small></div><select class="status" onchange="setStatus(${i},this.value)"><option value="yes" ${p.status!=='no'?'selected':''}>Bugün binecek</option><option value="no" ${p.status==='no'?'selected':''}>Bugün binmeyecek</option></select></div>`).join(''):'<div class="empty">Henüz yolcu kaydı yok.</div>';
+$('driverPeople').innerHTML=peopleHtml;$('parentPeople').innerHTML=peopleHtml;
+  $('driverTotal').textContent=data.people.length;
+$('driverBoarding').textContent=data.people.filter(p=>p.status!=='no').length;
+$('driverNotBoarding').textContent=data.people.filter(p=>p.status==='no').length;
+$('driverStops').innerHTML=data.routes.flatMap(r=>r.stops).map(s=>`<span class="pill" style="margin:3px">${esc(s)}</span>`).join(' ')||'<span class="muted">Henüz durak yok.</span>';
+ const groups = {};
 
 data.routes.forEach(r => {
   r.stops.forEach(s => {
@@ -110,31 +142,7 @@ $('driverStopSummary').innerHTML = Object.entries(groups).length
         ${people.map(p => `<div>${esc(p.name)} — ${p.status === 'no' ? 'Binmeyecek' : 'Binecek'}</div>`).join('')}
       </div>`;
     }).join('')
-  : '<div class="empty">Henüz durak veya yolcu kaydı yok.</div>';
-  <div class="card"><h2>Günlük yolcu listesi</h2><div id="driverPeople"></div></div>
-</section>
-<section id="parent" class="panel" hidden>
-<div class="card"><h2>Veli / personel ekranı</h2><p class="muted">Kayıtlı yolcu için günlük servis kullanım durumunu seçin.</p><div id="parentPeople"></div></div>
-<div class="card"><h2>Servis bilgisi</h2><div class="notice">Canlı GPS ve tahmini varış süresi, gerçek şoför konumu ve sunucu bağlantısı eklendiğinde etkinleştirilecektir.</div></div>
-</section>
-<footer>Servis Partnerim • İlk çalışan arayüz prototipi</footer>
-</main>
-<script>
-const $=id=>document.getElementById(id);
-const load=()=>{try{return JSON.parse(localStorage.getItem('sp_demo')||'{"routes":[],"people":[]}')}catch(e){return {routes:[],people:[]}}};
-let data=load(), stopDraft=[];
-const save=()=>{localStorage.setItem('sp_demo',JSON.stringify(data));render()};
-function addStopInput(value=''){const wrap=document.createElement('div');wrap.className='stop';const inp=document.createElement('input');inp.placeholder='Durak adı';inp.value=value;const del=document.createElement('button');del.className='danger';del.textContent='Sil';del.onclick=()=>wrap.remove();wrap.append(inp,del);$('stops').append(wrap)}
-function render(){
-$('stopCount').textContent=data.routes.reduce((n,r)=>n+r.stops.length,0);
-$('personCount').textContent=data.people.length;
-$('routeList').innerHTML=data.routes.length?data.routes.map((r,i)=>`<div class="person"><div><b>${esc(r.name)}</b><small>${esc(r.type)} • ${esc(r.start)} → ${esc(r.end)} • ${r.km||'—'} km</small><small>Duraklar: ${r.stops.map(esc).join(', ')||'Yok'}</small></div><button class="danger" onclick="deleteRoute(${i})">Sil</button></div>`).join(''):'Henüz güzergâh eklenmedi.';
-const peopleHtml=data.people.length?data.people.map((p,i)=>`<div class="person"><div><b>${esc(p.name)}</b><small>${esc(p.kind)} • ${esc(p.route||'Güzergâh belirtilmedi')} • ${esc(p.stop||'Durak belirtilmedi')}</small></div><select class="status" onchange="setStatus(${i},this.value)"><option value="yes" ${p.status!=='no'?'selected':''}>Bugün binecek</option><option value="no" ${p.status==='no'?'selected':''}>Bugün binmeyecek</option></select></div>`).join(''):'<div class="empty">Henüz yolcu kaydı yok.</div>';
-$('driverPeople').innerHTML=peopleHtml;$('parentPeople').innerHTML=peopleHtml;
-  $('driverTotal').textContent=data.people.length;
-$('driverBoarding').textContent=data.people.filter(p=>p.status!=='no').length;
-$('driverNotBoarding').textContent=data.people.filter(p=>p.status==='no').length;
-$('driverStops').innerHTML=data.routes.flatMap(r=>r.stops).map(s=>`<span class="pill" style="margin:3px">${esc(s)}</span>`).join(' ')||'<span class="muted">Henüz durak yok.</span>';
+  : '<div class="empty">Henüz durak veya yolcu kaydı yok.</div>'; 
   <div class="card">
   <h2>Durak bazlı yolcu takibi</h2>
   <div id="driverStopSummary"></div>
