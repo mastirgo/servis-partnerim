@@ -47,6 +47,10 @@ button.small{padding:7px 10px;font-size:12px}
 .status-word{font-weight:900;font-size:14px}
 .status-yes{color:#15803d}
 .status-no{color:#b91c1c}
+.person-management{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin:10px 0}
+.person-management select{margin:8px 0}
+.management-actions{display:flex;gap:8px;flex-wrap:wrap}
+.management-actions button{flex:1}
 .stop-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;margin:7px 0;background:#f8fafc;border:1px solid var(--border);border-radius:9px}
 .stop-actions{display:flex;gap:5px;flex-wrap:wrap}
 .empty{color:var(--muted);padding:12px 0}
@@ -119,7 +123,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
   </div>
 
   <div class="card">
-    <h2>Kayıtlı yolcular</h2>
+    <h2>Kayıtlı yolcular ve yolcu yönetimi</h2>
+    <p class="muted">Yolcunun durağını değiştirebilir veya artık servis kullanmayan yolcuyu silebilirsin.</p>
     <div id="companyPeople"></div>
   </div>
 </section>
@@ -305,6 +310,84 @@ function statusControls(person,index){
     </div>`;
 }
 
+/* Her yolcu için durak değiştirme ve silme alanı */
+function renderCompanyPeople(){
+  if(!data.people.length){
+    $('companyPeople').innerHTML =
+      '<div class="empty">Henüz yolcu kaydı yok.</div>';
+    return;
+  }
+
+  $('companyPeople').innerHTML = data.people.map((person,index)=>{
+    const route = data.routes.find(item=>item.name === person.route);
+    const stops = route && Array.isArray(route.stops) ? route.stops : [];
+
+    const stopOptions = stops.length
+      ? '<option value="">Yeni durak seçin</option>' +
+        stops.map(stop=>
+          `<option value="${esc(stop)}" ${sameText(stop,person.stop)?'selected':''}>${esc(stop)}</option>`
+        ).join('')
+      : '<option value="">Bu güzergâhta durak yok</option>';
+
+    return `
+      <div class="person-management">
+        <b>${esc(person.name)}</b>
+        <small>${esc(person.kind)} · ${esc(person.route || 'Güzergâh belirtilmedi')}</small>
+        <small>Mevcut durak: <b>${esc(person.stop || 'Durak atanmamış')}</b></small>
+
+        <label for="personStopEdit${index}">Yolcunun yeni durağı</label>
+        <select id="personStopEdit${index}" ${stops.length?'':'disabled'}>
+          ${stopOptions}
+        </select>
+
+        <div class="management-actions">
+          <button class="small" onclick="changePersonStop(${index})" ${stops.length?'':'disabled'}>
+            Durağı Güncelle
+          </button>
+          <button class="small danger" onclick="deletePerson(${index})">
+            Yolcuyu Sil
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function changePersonStop(index){
+  const person = data.people[index];
+  if(!person) return;
+
+  const select = $('personStopEdit'+index);
+  if(!select || !select.value){
+    alert('Lütfen yeni bir durak seçin.');
+    return;
+  }
+
+  const route = data.routes.find(item=>item.name === person.route);
+  if(!route || !route.stops.some(stop=>sameText(stop,select.value))){
+    alert('Seçilen durak bu yolcunun güzergâhında bulunmuyor.');
+    return;
+  }
+
+  person.stop = select.value;
+  saveData();
+  render();
+  alert('Yolcunun durağı güncellendi.');
+}
+
+function deletePerson(index){
+  const person = data.people[index];
+  if(!person) return;
+
+  if(!confirm(`${person.name} isimli yolcu silinsin mi? Bu işlem geri alınamaz.`)){
+    return;
+  }
+
+  data.people.splice(index,1);
+  saveData();
+  render();
+  alert('Yolcu silindi.');
+}
+
 function render(){
   const oldPersonRoute = $('personRoute').value;
   const oldDriverRoute = $('driverRoute').value;
@@ -330,6 +413,7 @@ function render(){
   fillRouteSelect('driverRoute',oldDriverRoute === '' ? 0 : Number(oldDriverRoute));
   fillPersonStops();
   renderDriverStops();
+  renderCompanyPeople();
 
   const peopleHtml = data.people.length
     ? data.people.map((person,index)=>`
@@ -344,7 +428,6 @@ function render(){
     `).join('')
     : '<div class="empty">Henüz yolcu kaydı yok.</div>';
 
-  $('companyPeople').innerHTML = peopleHtml;
   $('driverPeople').innerHTML = peopleHtml;
   $('parentPeople').innerHTML = peopleHtml;
 
