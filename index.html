@@ -41,7 +41,12 @@ button.small{padding:7px 10px;font-size:12px}
 .person small{display:block;margin-top:5px;line-height:1.5;color:var(--muted)}
 .status-area{display:grid;grid-template-columns:repeat(2,minmax(125px,1fr));gap:8px;width:100%;max-width:360px}
 .status-area label{font-size:12px}
-.status-area select{padding:9px;font-size:13px}
+.status-area select{padding:9px;font-size:13px;font-weight:800}
+.status-area select.status-yes{color:#15803d;border:2px solid #15803d}
+.status-area select.status-no{color:#b91c1c;border:2px solid #b91c1c}
+.status-word{font-weight:900;font-size:14px}
+.status-yes{color:#15803d}
+.status-no{color:#b91c1c}
 .stop-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;margin:7px 0;background:#f8fafc;border:1px solid var(--border);border-radius:9px}
 .stop-actions{display:flex;gap:5px;flex-wrap:wrap}
 .empty{color:var(--muted);padding:12px 0}
@@ -209,6 +214,12 @@ function esc(value){
   })[char]);
 }
 
+function statusText(status){
+  return status === 'no'
+    ? '<span class="status-word status-no">BİNMEYECEK</span>'
+    : '<span class="status-word status-yes">BİNECEK</span>';
+}
+
 /* Eski kayıtları koru ve sabah-akşam alanlarını oluştur */
 data.routes.forEach(route=>{
   if(!Array.isArray(route.stops)) route.stops = [];
@@ -277,16 +288,18 @@ function statusControls(person,index){
     <div class="status-area">
       <div>
         <label>Sabah servisi</label>
-        <select onchange="setStatus(${index},'morning',this.value)">
-          <option value="yes" ${person.morningStatus !== 'no' ? 'selected' : ''}>Binecek</option>
-          <option value="no" ${person.morningStatus === 'no' ? 'selected' : ''}>Binmeyecek</option>
+        <select class="${person.morningStatus === 'no' ? 'status-no' : 'status-yes'}"
+          onchange="setStatus(${index},'morning',this.value)">
+          <option value="yes" ${person.morningStatus !== 'no' ? 'selected' : ''}>BİNECEK</option>
+          <option value="no" ${person.morningStatus === 'no' ? 'selected' : ''}>BİNMEYECEK</option>
         </select>
       </div>
       <div>
         <label>Akşam servisi</label>
-        <select onchange="setStatus(${index},'evening',this.value)">
-          <option value="yes" ${person.eveningStatus !== 'no' ? 'selected' : ''}>Binecek</option>
-          <option value="no" ${person.eveningStatus === 'no' ? 'selected' : ''}>Binmeyecek</option>
+        <select class="${person.eveningStatus === 'no' ? 'status-no' : 'status-yes'}"
+          onchange="setStatus(${index},'evening',this.value)">
+          <option value="yes" ${person.eveningStatus !== 'no' ? 'selected' : ''}>BİNECEK</option>
+          <option value="no" ${person.eveningStatus === 'no' ? 'selected' : ''}>BİNMEYECEK</option>
         </select>
       </div>
     </div>`;
@@ -324,6 +337,7 @@ function render(){
         <div>
           <b>${esc(person.name)}</b>
           <small>${esc(person.kind)} · ${esc(person.route || 'Güzergâh belirtilmedi')} · ${esc(person.stop || 'Durak belirtilmedi')}</small>
+          <small>Sabah: ${statusText(person.morningStatus)} · Akşam: ${statusText(person.eveningStatus)}</small>
         </div>
         ${statusControls(person,index)}
       </div>
@@ -395,14 +409,14 @@ function renderStopSummary(){
 
       html += `<div style="padding:9px 0;border-top:1px solid #dbe3ec">
         <b>${esc(stop)}</b>
-        <p style="color:#166534;margin:7px 0">☀️ Sabah binecek: <b>${my}</b> · Binmeyecek: <b>${mn}</b></p>
-        <p style="color:#075985;margin:7px 0">🌙 Akşam binecek: <b>${ey}</b> · Binmeyecek: <b>${en}</b></p>
+        <p style="margin:7px 0">☀️ Sabah ${statusText('yes')}: <b>${my}</b> · ${statusText('no')}: <b>${mn}</b></p>
+        <p style="margin:7px 0">🌙 Akşam ${statusText('yes')}: <b>${ey}</b> · ${statusText('no')}: <b>${en}</b></p>
         ${people.length
           ? people.map(person=>`
             <div class="person">
               <div>
                 <b>${esc(person.name)}</b>
-                <small>Sabah: ${person.morningStatus === 'no' ? 'Binmeyecek' : 'Binecek'} · Akşam: ${person.eveningStatus === 'no' ? 'Binmeyecek' : 'Binecek'}</small>
+                <small>Sabah: ${statusText(person.morningStatus)} · Akşam: ${statusText(person.eveningStatus)}</small>
               </div>
             </div>
           `).join('')
