@@ -32,7 +32,6 @@ button{border:0;border-radius:8px;padding:11px 14px;background:var(--blue);color
 button:hover{filter:brightness(.95)}
 button.danger{background:#b91c1c}
 button.secondary{background:#64748b}
-button.success{background:#15803d}
 button.small{padding:7px 10px;font-size:12px}
 .notice{padding:15px;border-radius:10px;background:#eaf2fb}
 .notice h3{font-size:14px;color:var(--muted)}
@@ -40,10 +39,11 @@ button.small{padding:7px 10px;font-size:12px}
 .person{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
 .person:last-child{border-bottom:0}
 .person small{display:block;margin-top:5px;line-height:1.5;color:var(--muted)}
-.person select{max-width:165px}
+.status-area{display:grid;grid-template-columns:repeat(2,minmax(125px,1fr));gap:8px;width:100%;max-width:360px}
+.status-area label{font-size:12px}
+.status-area select{padding:9px;font-size:13px}
 .stop-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;margin:7px 0;background:#f8fafc;border:1px solid var(--border);border-radius:9px}
 .stop-actions{display:flex;gap:5px;flex-wrap:wrap}
-.pill{display:inline-block;padding:6px 10px;background:#e0f2fe;color:#075985;border-radius:20px;font-size:12px;margin:3px}
 .empty{color:var(--muted);padding:12px 0}
 .muted{color:var(--muted)}
 [hidden]{display:none!important}
@@ -51,7 +51,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
 @media(max-width:600px){
   main{padding:10px}
   .person{align-items:flex-start;flex-direction:column}
-  .person select{max-width:none}
+  .status-area{max-width:none}
   nav button{min-width:90px}
   .stop-row{align-items:flex-start;flex-direction:column}
 }
@@ -121,11 +121,20 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
 
 <section id="driver" class="panel" hidden>
   <div class="card">
-    <h2>Bugünün yolcu durumu</h2>
+    <h2>Sabah servis durumu</h2>
     <div class="grid">
-      <div class="notice"><h3>Toplam yolcu</h3><div class="number" id="driverTotal">0</div></div>
-      <div class="notice" style="background:#dcfce7;color:#166534"><h3>Binecek</h3><div class="number" id="driverBoarding">0</div></div>
-      <div class="notice" style="background:#fee2e2;color:#991b1b"><h3>Binmeyecek</h3><div class="number" id="driverNotBoarding">0</div></div>
+      <div class="notice"><h3>Sabah toplam yolcu</h3><div class="number" id="morningTotal">0</div></div>
+      <div class="notice" style="background:#dcfce7;color:#166534"><h3>Sabah binecek</h3><div class="number" id="morningYes">0</div></div>
+      <div class="notice" style="background:#fee2e2;color:#991b1b"><h3>Sabah binmeyecek</h3><div class="number" id="morningNo">0</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Akşam servis durumu</h2>
+    <div class="grid">
+      <div class="notice"><h3>Akşam toplam yolcu</h3><div class="number" id="eveningTotal">0</div></div>
+      <div class="notice" style="background:#dcfce7;color:#166534"><h3>Akşam binecek</h3><div class="number" id="eveningYes">0</div></div>
+      <div class="notice" style="background:#fee2e2;color:#991b1b"><h3>Akşam binmeyecek</h3><div class="number" id="eveningNo">0</div></div>
     </div>
   </div>
 
@@ -158,7 +167,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
 <section id="parent" class="panel" hidden>
   <div class="card">
     <h2>Günlük servis durumu</h2>
-    <p class="muted">Yolcuların bugünkü servise binme durumları.</p>
+    <p class="muted">Sabah ve akşam servis kullanım durumunu ayrı ayrı seçebilirsiniz.</p>
     <div id="parentPeople"></div>
   </div>
 </section>
@@ -185,29 +194,13 @@ function loadData(){
 
 let data = loadData();
 
-/* Eski kayıtları yeni durak sistemine uyarla */
-data.routes.forEach(route=>{
-  if(!Array.isArray(route.stops)) route.stops = [];
-});
-let migrated = false;
-data.people.forEach(person=>{
-  const route = data.routes.find(item=>item.name === person.route);
-  if(route && person.stop){
-    if(!route.stops.some(stop=>sameText(stop,person.stop))){
-      route.stops.push(person.stop);
-      migrated = true;
-    }
-  }
-});
-if(migrated) saveData();
-
-function saveData(){
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
-}
-
 function sameText(a,b){
   return String(a || '').trim().toLocaleLowerCase('tr') ===
          String(b || '').trim().toLocaleLowerCase('tr');
+}
+
+function saveData(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 
 function esc(value){
@@ -215,6 +208,28 @@ function esc(value){
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   })[char]);
 }
+
+/* Eski kayıtları koru ve sabah-akşam alanlarını oluştur */
+data.routes.forEach(route=>{
+  if(!Array.isArray(route.stops)) route.stops = [];
+});
+
+data.people.forEach(person=>{
+  if(!person.morningStatus){
+    person.morningStatus = person.status || 'yes';
+  }
+  if(!person.eveningStatus){
+    person.eveningStatus = person.status || 'yes';
+  }
+  delete person.status;
+
+  const route = data.routes.find(item=>item.name === person.route);
+  if(route && person.stop &&
+     !route.stops.some(stop=>sameText(stop,person.stop))){
+    route.stops.push(person.stop);
+  }
+});
+saveData();
 
 function showTab(tab){
   document.querySelectorAll('.panel').forEach(panel=>{
@@ -243,8 +258,7 @@ function fillRouteSelect(selectId,selectedValue){
 }
 
 function fillPersonStops(){
-  const routeIndex = $('personRoute').value;
-  const route = data.routes[Number(routeIndex)];
+  const route = data.routes[Number($('personRoute').value)];
   const select = $('personStop');
 
   if(!route || !route.stops.length){
@@ -256,6 +270,26 @@ function fillPersonStops(){
     route.stops.map(stop=>
       `<option value="${esc(stop)}">${esc(stop)}</option>`
     ).join('');
+}
+
+function statusControls(person,index){
+  return `
+    <div class="status-area">
+      <div>
+        <label>Sabah servisi</label>
+        <select onchange="setStatus(${index},'morning',this.value)">
+          <option value="yes" ${person.morningStatus !== 'no' ? 'selected' : ''}>Binecek</option>
+          <option value="no" ${person.morningStatus === 'no' ? 'selected' : ''}>Binmeyecek</option>
+        </select>
+      </div>
+      <div>
+        <label>Akşam servisi</label>
+        <select onchange="setStatus(${index},'evening',this.value)">
+          <option value="yes" ${person.eveningStatus !== 'no' ? 'selected' : ''}>Binecek</option>
+          <option value="no" ${person.eveningStatus === 'no' ? 'selected' : ''}>Binmeyecek</option>
+        </select>
+      </div>
+    </div>`;
 }
 
 function render(){
@@ -291,10 +325,7 @@ function render(){
           <b>${esc(person.name)}</b>
           <small>${esc(person.kind)} · ${esc(person.route || 'Güzergâh belirtilmedi')} · ${esc(person.stop || 'Durak belirtilmedi')}</small>
         </div>
-        <select onchange="setStatus(${index},this.value)">
-          <option value="yes" ${person.status !== 'no' ? 'selected' : ''}>Bugün binecek</option>
-          <option value="no" ${person.status === 'no' ? 'selected' : ''}>Bugün binmeyecek</option>
-        </select>
+        ${statusControls(person,index)}
       </div>
     `).join('')
     : '<div class="empty">Henüz yolcu kaydı yok.</div>';
@@ -303,9 +334,17 @@ function render(){
   $('driverPeople').innerHTML = peopleHtml;
   $('parentPeople').innerHTML = peopleHtml;
 
-  $('driverTotal').textContent = data.people.length;
-  $('driverBoarding').textContent = data.people.filter(person=>person.status !== 'no').length;
-  $('driverNotBoarding').textContent = data.people.filter(person=>person.status === 'no').length;
+  const morningYes = data.people.filter(p=>p.morningStatus !== 'no').length;
+  const morningNo = data.people.filter(p=>p.morningStatus === 'no').length;
+  const eveningYes = data.people.filter(p=>p.eveningStatus !== 'no').length;
+  const eveningNo = data.people.filter(p=>p.eveningStatus === 'no').length;
+
+  $('morningTotal').textContent = data.people.length;
+  $('morningYes').textContent = morningYes;
+  $('morningNo').textContent = morningNo;
+  $('eveningTotal').textContent = data.people.length;
+  $('eveningYes').textContent = eveningYes;
+  $('eveningNo').textContent = eveningNo;
 
   renderStopSummary();
 }
@@ -348,20 +387,23 @@ function renderStopSummary(){
       const people = data.people.filter(person=>
         person.route === route.name && sameText(person.stop,stop)
       );
-      const yes = people.filter(person=>person.status !== 'no').length;
-      const no = people.filter(person=>person.status === 'no').length;
+
+      const my = people.filter(p=>p.morningStatus !== 'no').length;
+      const mn = people.filter(p=>p.morningStatus === 'no').length;
+      const ey = people.filter(p=>p.eveningStatus !== 'no').length;
+      const en = people.filter(p=>p.eveningStatus === 'no').length;
 
       html += `<div style="padding:9px 0;border-top:1px solid #dbe3ec">
         <b>${esc(stop)}</b>
-        <p style="color:#166534;margin:7px 0">🟢 Binecek: <b>${yes}</b></p>
-        <p style="color:#991b1b;margin:7px 0">🔴 Binmeyecek: <b>${no}</b></p>
+        <p style="color:#166534;margin:7px 0">☀️ Sabah binecek: <b>${my}</b> · Binmeyecek: <b>${mn}</b></p>
+        <p style="color:#075985;margin:7px 0">🌙 Akşam binecek: <b>${ey}</b> · Binmeyecek: <b>${en}</b></p>
         ${people.length
           ? people.map(person=>`
             <div class="person">
-              <span>${esc(person.name)}</span>
-              <b style="color:${person.status === 'no' ? '#b91c1c' : '#15803d'}">
-                ${person.status === 'no' ? 'Binmeyecek' : 'Binecek'}
-              </b>
+              <div>
+                <b>${esc(person.name)}</b>
+                <small>Sabah: ${person.morningStatus === 'no' ? 'Binmeyecek' : 'Binecek'} · Akşam: ${person.eveningStatus === 'no' ? 'Binmeyecek' : 'Binecek'}</small>
+              </div>
             </div>
           `).join('')
           : '<small>Bu durakta kayıtlı yolcu yok.</small>'}
@@ -371,6 +413,7 @@ function renderStopSummary(){
     const unassigned = data.people.filter(person=>
       person.route === route.name && !person.stop
     );
+
     if(unassigned.length){
       html += `<div style="padding:10px 0;border-top:1px solid #dbe3ec">
         <b>Durak belirtilmemiş</b>
@@ -435,9 +478,8 @@ function deleteRoute(index){
 
 $('addPerson').addEventListener('click',()=>{
   const name = $('personName').value.trim();
-  const routeIndex = $('personRoute').value;
+  const route = data.routes[Number($('personRoute').value)];
   const stop = $('personStop').value;
-  const route = data.routes[Number(routeIndex)];
 
   if(!name){
     alert('Yolcu adını girin.');
@@ -448,7 +490,7 @@ $('addPerson').addEventListener('click',()=>{
     return;
   }
   if(!stop){
-    alert('Yolcunun bineceği durağı seçin. Durak yoksa önce şoför panelinden ekleyin.');
+    alert('Yolcunun bineceği durağı seçin.');
     return;
   }
 
@@ -457,7 +499,8 @@ $('addPerson').addEventListener('click',()=>{
     kind:$('personKind').value,
     route:route.name,
     stop,
-    status:'yes'
+    morningStatus:'yes',
+    eveningStatus:'yes'
   });
 
   saveData();
@@ -468,8 +511,7 @@ $('addPerson').addEventListener('click',()=>{
 });
 
 $('driverAddStop').addEventListener('click',()=>{
-  const routeIndex = $('driverRoute').value;
-  const route = data.routes[Number(routeIndex)];
+  const route = data.routes[Number($('driverRoute').value)];
   const stop = $('driverStop').value.trim();
 
   if(!route){
@@ -529,9 +571,16 @@ function deleteStop(routeIndex,stopIndex){
   renderDriverStops();
 }
 
-function setStatus(index,value){
-  if(!data.people[index]) return;
-  data.people[index].status = value;
+function setStatus(index,period,value){
+  const person = data.people[index];
+  if(!person) return;
+
+  if(period === 'morning'){
+    person.morningStatus = value;
+  }else if(period === 'evening'){
+    person.eveningStatus = value;
+  }
+
   saveData();
   render();
 }
