@@ -1,158 +1,480 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#123b63">
 <title>Servis Partnerim</title>
 <style>
-:root{--navy:#123b63;--blue:#1769aa;--teal:#16a6a1;--bg:#f3f6fa;--ink:#172b3d;--muted:#657789;--line:#dce5ed}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-header{background:linear-gradient(125deg,#123b63,#1769aa);color:white;padding:22px 18px 26px}
-.brand{display:flex;align-items:center;gap:12px;max-width:980px;margin:auto}.logo{width:48px;height:48px;border-radius:15px;background:#ffffff20;display:grid;place-items:center;font-size:27px}
-h1{font-size:21px;margin:0}header p{margin:4px 0 0;color:#d8e8f7;font-size:13px}
-main{max-width:980px;margin:18px auto;padding:0 14px 40px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-button,.tab{border:0;border-radius:10px;padding:11px 14px;font-weight:650;cursor:pointer;background:#e4edf5;color:var(--navy)}
-.tab.active,button.primary{background:var(--blue);color:white}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:17px;margin:12px 0;box-shadow:0 3px 12px #183c5b0a}
-h2{font-size:18px;margin:0 0 13px}h3{font-size:15px;margin:0 0 10px}
-.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-label{display:block;font-size:13px;font-weight:650;color:#40566b;margin-bottom:5px}
-input,select{width:100%;border:1px solid #cbd8e3;border-radius:9px;padding:11px;background:white;color:#172b3d;font:inherit}
-.field{margin-bottom:11px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-button.secondary{background:#eaf1f7;color:var(--navy)}button.danger{background:#fff0ef;color:#a33}
-.stop{display:flex;gap:8px;align-items:center;margin:8px 0}.stop input{flex:1}
-.pill{display:inline-block;border-radius:30px;padding:5px 9px;font-size:12px;background:#e8f5f4;color:#087b76;font-weight:700}
-.muted{color:var(--muted);font-size:13px}.metric{font-size:25px;font-weight:800;color:var(--navy)}
-.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.person{padding:12px 0;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
-.person:first-of-type{border-top:0}.person small{display:block;color:var(--muted);margin-top:3px}
-.status{min-width:132px}.empty{padding:18px;text-align:center;color:var(--muted)}
-.notice{background:#fff8e8;border:1px solid #f1dfb6;color:#70551b;border-radius:10px;padding:11px;font-size:13px}
-footer{text-align:center;color:#8191a0;font-size:12px;padding:18px}
-@media(max-width:600px){.grid{grid-template-columns:1fr}.person{align-items:flex-start;flex-direction:column}.status{width:100%}.status select{width:100%}}
+:root{
+  --navy:#123b63;--blue:#1769aa;--teal:#16a6a1;
+  --bg:#f3f6fa;--ink:#172b40;--muted:#64748b;
+  --green:#15803d;--red:#b91c1c;--border:#dbe3ec;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,sans-serif}
+header{background:var(--navy);color:white;padding:22px 16px}
+header h1{margin:0;font-size:25px}
+header p{margin:7px 0 0;color:#dbeafe}
+main{max-width:1100px;margin:auto;padding:16px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+nav button{flex:1;min-width:110px;background:#e2e8f0;color:var(--navy)}
+nav button.active{background:var(--navy);color:white}
+.card{background:white;border:1px solid var(--border);border-radius:13px;padding:16px;margin-bottom:15px;box-shadow:0 2px 7px #0f172a0b}
+h2{font-size:19px;margin:0 0 14px}
+h3{font-size:16px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.field{margin-bottom:12px}
+label{display:block;font-size:13px;font-weight:bold;margin-bottom:6px}
+input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;background:white;color:#172b40}
+button{border:0;border-radius:8px;padding:11px 14px;background:var(--blue);color:white;font-weight:bold;font-size:14px;cursor:pointer}
+button:hover{filter:brightness(.95)}
+button.danger{background:#b91c1c}
+button.secondary{background:#64748b}
+button.success{background:#15803d}
+small,.muted{color:var(--muted)}
+.person{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+.person:last-child{border-bottom:0}
+.person small{display:block;margin-top:5px;line-height:1.5}
+.person select{max-width:165px}
+.notice{padding:15px;border-radius:10px;background:#eaf2fb}
+.notice h3{font-size:14px;color:var(--muted)}
+.number{font-size:29px;font-weight:bold}
+.pill{display:inline-block;padding:6px 10px;background:#e0f2fe;color:#075985;border-radius:20px;font-size:12px;margin:3px}
+.empty{color:var(--muted);padding:12px 0}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+[hidden]{display:none!important}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+@media(max-width:600px){
+  main{padding:10px}
+  .person{align-items:flex-start;flex-direction:column}
+  .person select{max-width:none}
+  nav button{min-width:90px}
+}
 </style>
 </head>
 <body>
-<header><div class="brand"><div class="logo">🚌</div><div><h1>Servis Partnerim</h1><p>Okul ve personel servisleri için akıllı takip</p></div></div></header>
+
+<header>
+  <h1>Servis Partnerim</h1>
+  <p>Okul ve personel servisleri yönetim paneli</p>
+</header>
+
 <main>
-<div class="tabs">
-<button class="tab active" data-tab="company">Firma paneli</button>
-<button class="tab" data-tab="driver">Şoför paneli</button>
-<button class="tab" data-tab="parent">Veli / Personel</button>
-</div>
-<section id="company" class="panel">
-<div class="card"><div class="row"><div><h2>Firma yönetim paneli</h2><div class="muted">İlk prototip • Örnek veriler bu cihazın tarayıcısında saklanır.</div></div><span class="pill">Demo</span></div>
-<div class="grid" style="margin-top:14px"><div><div class="muted">Kayıtlı durak</div><div class="metric" id="stopCount">0</div></div><div><div class="muted">Yolcu kaydı</div><div class="metric" id="personCount">0</div></div></div></div>
-<div class="card"><h2>Güzergâh oluştur</h2>
-<div class="grid">
-<div class="field"><label for="routeType">Servis türü</label><select id="routeType"><option>Okul servisi</option><option>Personel servisi</option></select></div>
-<div class="field"><label for="routeName">Güzergâh adı</label><input id="routeName" placeholder="Örn. Sabah A güzergâhı"></div>
-<div class="field"><label for="start">Başlangıç noktası</label><input id="start" placeholder="Başlangıç adresi"></div>
-<div class="field"><label for="end">Bitiş noktası</label><input id="end" placeholder="Okul / iş yeri adresi"></div>
-</div>
-<div class="field"><label>Duraklar (isimleri şoför belirleyebilir)</label><div id="stops"></div><button class="secondary" id="addStop">+ Durak ekle</button></div>
-<div class="field"><label for="km">Toplam güzergâh mesafesi (km)</label><input id="km" type="number" min="0" step="0.1" placeholder="Örn. 18,5"></div>
-<div class="notice">Bu prototipte kilometre alanı deneme amacıyla elle girilir. Sonraki geliştirme aşamasında başlangıç, duraklar ve bitiş noktaları harita/yol rotası servisiyle hesaplanacaktır.</div>
-<div class="actions"><button class="primary" id="saveRoute">Güzergâhı kaydet</button><button class="secondary" id="clearRoute">Formu temizle</button></div>
-</div>
-<div class="card"><h2>Kayıtlı güzergâhlar</h2><div id="routeList" class="muted">Henüz güzergâh eklenmedi.</div></div>
-<div class="card"><h2>Öğrenci / personel ekle</h2><div class="grid">
-<div class="field"><label for="personName">Ad soyad</label><input id="personName" placeholder="Ad soyad"></div>
-<div class="field"><label for="personStop">Bineceği durak</label><input id="personStop" placeholder="Durak adı"></div>
-<div class="field"><label for="personKind">Kayıt türü</label><select id="personKind"><option>Öğrenci</option><option>Personel</option></select></div>
-<div class="field"><label for="personRoute">Güzergâh</label><input id="personRoute" placeholder="Güzergâh adı"></div>
-</div><button class="primary" id="addPerson">Yolcu kaydet</button></div>
-</section>
-<section id="driver" class="panel" hidden>
-  <div class="card">
-  <h2>Bugünün yolcu durumu</h2>
-  <div class="grid">
-    <div class="notice">
-      <h3>Toplam yolcu</h3>
-      <div id="driverTotal" style="font-size:30px;font-weight:bold">0</div>
+  <nav>
+    <button class="active" data-tab="company">Firma Paneli</button>
+    <button data-tab="driver">Şoför Paneli</button>
+    <button data-tab="parent">Veli / Personel</button>
+  </nav>
+
+  <!-- FİRMA PANELİ -->
+  <section id="company" class="panel">
+    <div class="card">
+      <h2>Genel durum</h2>
+      <div class="grid">
+        <div class="notice">
+          <h3>Güzergâh sayısı</h3>
+          <div class="number" id="routeCount">0</div>
+        </div>
+        <div class="notice">
+          <h3>Durak sayısı</h3>
+          <div class="number" id="stopCount">0</div>
+        </div>
+        <div class="notice">
+          <h3>Toplam yolcu</h3>
+          <div class="number" id="personCount">0</div>
+        </div>
+      </div>
     </div>
-    <div class="notice" style="background:#dcfce7;color:#166534">
-      <h3>Binecek</h3>
-      <div id="driverBoarding" style="font-size:30px;font-weight:bold">0</div>
+
+    <div class="card">
+      <h2>Yeni güzergâh oluştur</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="routeName">Güzergâh adı</label>
+          <input id="routeName" placeholder="Örn. Merkez - Okul">
+        </div>
+        <div class="field">
+          <label for="routeType">Servis türü</label>
+          <select id="routeType">
+            <option>Okul Servisi</option>
+            <option>Personel Servisi</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="routeStart">Başlangıç noktası</label>
+          <input id="routeStart" placeholder="Başlangıç">
+        </div>
+        <div class="field">
+          <label for="routeEnd">Bitiş noktası</label>
+          <input id="routeEnd" placeholder="Bitiş">
+        </div>
+        <div class="field">
+          <label for="routeKm">Güzergâh uzunluğu (km)</label>
+          <input id="routeKm" type="number" min="0" step="0.1" placeholder="Örn. 12.5">
+        </div>
+      </div>
+      <button id="addRoute">Güzergâhı kaydet</button>
     </div>
-    <div class="notice" style="background:#fee2e2;color:#991b1b">
-      <h3>Binmeyecek</h3>
-      <div id="driverNotBoarding" style="font-size:30px;font-weight:bold">0</div>
+
+    <div class="card">
+      <h2>Güzergâhlar</h2>
+      <div id="routeList"></div>
     </div>
-  </div>
-</div>
-<div class="card"><h2>Şoför paneli</h2><p class="muted">Şoför kendi durak adlarını ekleyebilir. Günlük yolcu kullanım durumunu aşağıdan işaretleyebilir.</p>
-<div class="field"><label for="driverStop">Yeni durak adı</label><input id="driverStop" placeholder="Örn. Cumhuriyet Meydanı"></div><button class="primary" id="driverAddStop">Durağı ekle</button><div id="driverStops" style="margin-top:12px"></div></div>
-  <div class="card"><h2>Günlük yolcu listesi</h2><div id="driverPeople"></div></div>
-</section>
-<section id="parent" class="panel" hidden>
-<div class="card"><h2>Veli / personel ekranı</h2><p class="muted">Kayıtlı yolcu için günlük servis kullanım durumunu seçin.</p><div id="parentPeople"></div></div>
-<div class="card"><h2>Servis bilgisi</h2><div class="notice">Canlı GPS ve tahmini varış süresi, gerçek şoför konumu ve sunucu bağlantısı eklendiğinde etkinleştirilecektir.</div></div>
-</section>
-<footer>Servis Partnerim • İlk çalışan arayüz prototipi</footer>
+
+    <div class="card">
+      <h2>Yeni yolcu kaydı</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="personName">Adı soyadı</label>
+          <input id="personName" placeholder="Yolcu adı soyadı">
+        </div>
+        <div class="field">
+          <label for="personKind">Yolcu türü</label>
+          <select id="personKind">
+            <option>Öğrenci</option>
+            <option>Personel</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="personRoute">Güzergâh</label>
+          <select id="personRoute"></select>
+        </div>
+        <div class="field">
+          <label for="personStop">Bineceği durak</label>
+          <input id="personStop" placeholder="Durak adı">
+        </div>
+      </div>
+      <button id="addPerson">Yolcuyu kaydet</button>
+    </div>
+
+    <div class="card">
+      <h2>Kayıtlı yolcular</h2>
+      <div id="companyPeople"></div>
+    </div>
+  </section>
+
+  <!-- ŞOFÖR PANELİ -->
+  <section id="driver" class="panel" hidden>
+    <div class="card">
+      <h2>Bugünün yolcu durumu</h2>
+      <div class="grid">
+        <div class="notice">
+          <h3>Toplam yolcu</h3>
+          <div class="number" id="driverTotal">0</div>
+        </div>
+        <div class="notice" style="background:#dcfce7;color:#166534">
+          <h3>Binecek</h3>
+          <div class="number" id="driverBoarding">0</div>
+        </div>
+        <div class="notice" style="background:#fee2e2;color:#991b1b">
+          <h3>Binmeyecek</h3>
+          <div class="number" id="driverNotBoarding">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Şoför paneli</h2>
+      <p class="muted">Güzergâhını seçerek yeni durak ekleyebilirsin.</p>
+      <div class="field">
+        <label for="driverRoute">Güzergâh seç</label>
+        <select id="driverRoute"></select>
+      </div>
+      <div class="field">
+        <label for="driverStop">Yeni durak adı</label>
+        <input id="driverStop" placeholder="Örn. Cumhuriyet Meydanı">
+      </div>
+      <button id="driverAddStop">Durağı ekle</button>
+      <div id="driverStops" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Durak bazlı yolcu takibi</h2>
+      <div id="driverStopSummary"></div>
+    </div>
+
+    <div class="card">
+      <h2>Günlük yolcu listesi</h2>
+      <div id="driverPeople"></div>
+    </div>
+  </section>
+
+  <!-- VELİ / PERSONEL PANELİ -->
+  <section id="parent" class="panel" hidden>
+    <div class="card">
+      <h2>Günlük servis durumu</h2>
+      <p class="muted">Yolcuların bugünkü servise binme durumları burada görüntülenir.</p>
+      <div id="parentPeople"></div>
+    </div>
+  </section>
 </main>
+
+<footer>Servis Partnerim · Demo sürüm</footer>
+
 <script>
-const $=id=>document.getElementById(id);
-const load=()=>{try{return JSON.parse(localStorage.getItem('sp_demo')||'{"routes":[],"people":[]}')}catch(e){return {routes:[],people:[]}}};
-let data=load(), stopDraft=[];
-const save=()=>{localStorage.setItem('sp_demo',JSON.stringify(data));render()};
-function addStopInput(value=''){const wrap=document.createElement('div');wrap.className='stop';const inp=document.createElement('input');inp.placeholder='Durak adı';inp.value=value;const del=document.createElement('button');del.className='danger';del.textContent='Sil';del.onclick=()=>wrap.remove();wrap.append(inp,del);$('stops').append(wrap)}
-function render(){
-$('stopCount').textContent=data.routes.reduce((n,r)=>n+r.stops.length,0);
-$('personCount').textContent=data.people.length;
-$('routeList').innerHTML=data.routes.length?data.routes.map((r,i)=>`<div class="person"><div><b>${esc(r.name)}</b><small>${esc(r.type)} • ${esc(r.start)} → ${esc(r.end)} • ${r.km||'—'} km</small><small>Duraklar: ${r.stops.map(esc).join(', ')||'Yok'}</small></div><button class="danger" onclick="deleteRoute(${i})">Sil</button></div>`).join(''):'Henüz güzergâh eklenmedi.';
-const peopleHtml=data.people.length?data.people.map((p,i)=>`<div class="person"><div><b>${esc(p.name)}</b><small>${esc(p.kind)} • ${esc(p.route||'Güzergâh belirtilmedi')} • ${esc(p.stop||'Durak belirtilmedi')}</small></div><select class="status" onchange="setStatus(${i},this.value)"><option value="yes" ${p.status!=='no'?'selected':''}>Bugün binecek</option><option value="no" ${p.status==='no'?'selected':''}>Bugün binmeyecek</option></select></div>`).join(''):'<div class="empty">Henüz yolcu kaydı yok.</div>';
-$('driverPeople').innerHTML=peopleHtml;$('parentPeople').innerHTML=peopleHtml;
-  $('driverTotal').textContent=data.people.length;
-$('driverBoarding').textContent=data.people.filter(p=>p.status!=='no').length;
-$('driverNotBoarding').textContent=data.people.filter(p=>p.status==='no').length;
-$('driverStops').innerHTML=data.routes.flatMap(r=>r.stops).map(s=>`<span class="pill" style="margin:3px">${esc(s)}</span>`).join(' ')||'<span class="muted">Henüz durak yok.</span>';
- const groups = {};
+const $ = id => document.getElementById(id);
+const STORAGE_KEY = 'sp_demo';
 
-data.routes.forEach(r => {
-  r.stops.forEach(s => {
-    const stop = s.trim();
-    if (stop && !groups[stop]) groups[stop] = [];
-  });
-});
-
-data.people.forEach(p => {
-  const stop = p.stop?.trim() || 'Durak belirtilmedi';
-  if (!groups[stop]) groups[stop] = [];
-  groups[stop].push(p);
-});
-
-$('driverStopSummary').innerHTML = Object.entries(groups).length
-  ? Object.entries(groups).map(([stop, people]) => {
-      const yes = people.filter(p => p.status !== 'no').length;
-      const no = people.filter(p => p.status === 'no').length;
-
-      return `<div class="person" style="display:block;margin-bottom:12px">
-        <h3>${esc(stop)}</h3>
-        <p style="color:#166534">🟢 Binecek: ${yes}</p>
-        <p style="color:#991b1b">🔴 Binmeyecek: ${no}</p>
-        ${people.map(p => `<div>${esc(p.name)} — ${p.status === 'no' ? 'Binmeyecek' : 'Binecek'}</div>`).join('')}
-      </div>`;
-    }).join('')
-  : '<div class="empty">Henüz durak veya yolcu kaydı yok.</div>'; 
-  <div class="card">
-  <h2>Durak bazlı yolcu takibi</h2>
-  <div id="driverStopSummary"></div>
-</div>
+function loadData(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(saved && typeof saved === 'object'){
+      return {
+        routes:Array.isArray(saved.routes) ? saved.routes : [],
+        people:Array.isArray(saved.people) ? saved.people : []
+      };
+    }
+  }catch(e){}
+  return {routes:[],people:[]};
 }
-function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-window.deleteRoute=i=>{if(confirm('Güzergâh silinsin mi?')){data.routes.splice(i,1);save()}};
-window.setStatus=(i,v)=>{
-data.people[i].status=v;
-localStorage.setItem('sp_demo',JSON.stringify(data));
-render();
-};
-document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!==b.dataset.tab);if(b.dataset.tab==='driver')render()});
-$('addStop').onclick=()=>addStopInput();addStopInput();
-$('saveRoute').onclick=()=>{const stops=[...$('stops').querySelectorAll('input')].map(x=>x.value.trim()).filter(Boolean);const r={type:$('routeType').value,name:$('routeName').value.trim()||'Yeni güzergâh',start:$('start').value.trim(),end:$('end').value.trim(),stops,km:$('km').value};if(!r.start||!r.end){alert('Başlangıç ve bitiş noktalarını girin.');return}data.routes.push(r);save();alert('Güzergâh kaydedildi.')};
-$('clearRoute').onclick=()=>{['routeName','start','end','km'].forEach(id=>$(id).value='');$('stops').innerHTML='';addStopInput()};
-$('addPerson').onclick=()=>{const name=$('personName').value.trim();if(!name){alert('Ad soyad girin.');return}data.people.push({name,stop:$('personStop').value.trim(),kind:$('personKind').value,route:$('personRoute').value.trim(),status:'yes'});['personName','personStop','personRoute'].forEach(id=>$(id).value='');save();alert('Yolcu kaydedildi.')};
-$('driverAddStop').onclick=()=>{const s=$('driverStop').value.trim();if(!s){alert('Durak adını girin.');return}if(!data.routes.length){alert('Önce firma panelinden bir güzergâh oluşturun.');return}data.routes[0].stops.push(s);$('driverStop').value='';save()};
+
+let data = loadData();
+
+function saveData(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
+
+function esc(value){
+  return String(value ?? '').replace(/[&<>"']/g,char=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[char]);
+}
+
+function showTab(tab){
+  document.querySelectorAll('.panel').forEach(panel=>{
+    panel.hidden = panel.id !== tab;
+  });
+  document.querySelectorAll('nav button').forEach(button=>{
+    button.classList.toggle('active',button.dataset.tab === tab);
+  });
+}
+
+document.querySelectorAll('nav button').forEach(button=>{
+  button.addEventListener('click',()=>showTab(button.dataset.tab));
+});
+
+function render(){
+  $('routeCount').textContent = data.routes.length;
+  $('stopCount').textContent = data.routes.reduce((total,route)=>
+    total + (Array.isArray(route.stops) ? route.stops.length : 0),0);
+  $('personCount').textContent = data.people.length;
+
+  $('routeList').innerHTML = data.routes.length
+    ? data.routes.map((route,index)=>`
+      <div class="person">
+        <div>
+          <b>${esc(route.name)}</b>
+          <small>${esc(route.type)} · ${esc(route.start)} → ${esc(route.end)} · ${esc(route.km || '—')} km</small>
+          <small>Duraklar: ${(route.stops || []).map(esc).join(', ') || 'Henüz durak yok'}</small>
+        </div>
+        <button class="danger" onclick="deleteRoute(${index})">Sil</button>
+      </div>
+    `).join('')
+    : '<div class="empty">Henüz güzergâh eklenmedi.</div>';
+
+  const routeOptions = data.routes.map((route,index)=>
+    `<option value="${index}">${esc(route.name)}</option>`
+  ).join('');
+
+  $('personRoute').innerHTML = routeOptions ||
+    '<option value="">Önce güzergâh ekleyin</option>';
+  $('driverRoute').innerHTML = routeOptions ||
+    '<option value="">Önce güzergâh ekleyin</option>';
+
+  const peopleHtml = data.people.length
+    ? data.people.map((person,index)=>`
+      <div class="person">
+        <div>
+          <b>${esc(person.name)}</b>
+          <small>${esc(person.kind)} · ${esc(person.route || 'Güzergâh belirtilmedi')} · ${esc(person.stop || 'Durak belirtilmedi')}</small>
+        </div>
+        <select onchange="setStatus(${index},this.value)">
+          <option value="yes" ${person.status !== 'no' ? 'selected' : ''}>Bugün binecek</option>
+          <option value="no" ${person.status === 'no' ? 'selected' : ''}>Bugün binmeyecek</option>
+        </select>
+      </div>
+    `).join('')
+    : '<div class="empty">Henüz yolcu kaydı yok.</div>';
+
+  $('companyPeople').innerHTML = peopleHtml;
+  $('driverPeople').innerHTML = peopleHtml;
+  $('parentPeople').innerHTML = peopleHtml;
+
+  $('driverTotal').textContent = data.people.length;
+  $('driverBoarding').textContent =
+    data.people.filter(person=>person.status !== 'no').length;
+  $('driverNotBoarding').textContent =
+    data.people.filter(person=>person.status === 'no').length;
+
+  $('driverStops').innerHTML = data.routes.length
+    ? data.routes.map(route=>`
+      <div style="margin-bottom:10px">
+        <b>${esc(route.name)}</b><br>
+        ${(route.stops || []).map(stop=>
+          `<span class="pill">${esc(stop)}</span>`
+        ).join('') || '<span class="muted">Durak eklenmedi</span>'}
+      </div>
+    `).join('')
+    : '<span class="muted">Henüz güzergâh yok.</span>';
+
+  renderStopSummary();
+}
+
+function renderStopSummary(){
+  const groups = {};
+
+  data.routes.forEach(route=>{
+    (route.stops || []).forEach(stop=>{
+      const name = String(stop).trim();
+      if(name && !groups[name]) groups[name] = [];
+    });
+  });
+
+  data.people.forEach(person=>{
+    const stop = String(person.stop || 'Durak belirtilmedi').trim();
+    if(!groups[stop]) groups[stop] = [];
+    groups[stop].push(person);
+  });
+
+  const entries = Object.entries(groups);
+
+  $('driverStopSummary').innerHTML = entries.length
+    ? entries.map(([stop,people])=>{
+        const yes = people.filter(person=>person.status !== 'no').length;
+        const no = people.filter(person=>person.status === 'no').length;
+
+        return `
+          <div class="card" style="background:#f8fafc">
+            <h3>${esc(stop)}</h3>
+            <p style="color:#166534">🟢 Binecek: <b>${yes}</b></p>
+            <p style="color:#991b1b">🔴 Binmeyecek: <b>${no}</b></p>
+            ${people.length
+              ? people.map(person=>`
+                <div class="person">
+                  <span>${esc(person.name)}</span>
+                  <b style="color:${person.status === 'no' ? '#b91c1c' : '#15803d'}">
+                    ${person.status === 'no' ? 'Binmeyecek' : 'Binecek'}
+                  </b>
+                </div>
+              `).join('')
+              : '<small>Bu durakta kayıtlı yolcu yok.</small>'}
+          </div>
+        `;
+      }).join('')
+    : '<div class="empty">Henüz durak veya yolcu kaydı yok.</div>';
+}
+
+$('addRoute').addEventListener('click',()=>{
+  const name = $('routeName').value.trim();
+  const start = $('routeStart').value.trim();
+  const end = $('routeEnd').value.trim();
+
+  if(!name || !start || !end){
+    alert('Güzergâh adı, başlangıç ve bitiş noktalarını girin.');
+    return;
+  }
+
+  data.routes.push({
+    name,
+    type:$('routeType').value,
+    start,
+    end,
+    km:$('routeKm').value,
+    stops:[]
+  });
+
+  saveData();
+  $('routeName').value = '';
+  $('routeStart').value = '';
+  $('routeEnd').value = '';
+  $('routeKm').value = '';
+  render();
+  alert('Güzergâh kaydedildi.');
+});
+
+function deleteRoute(index){
+  if(!confirm('Bu güzergâh silinsin mi?')) return;
+  const name = data.routes[index]?.name;
+  data.routes.splice(index,1);
+  data.people.forEach(person=>{
+    if(person.route === name) person.route = '';
+  });
+  saveData();
+  render();
+}
+
+$('addPerson').addEventListener('click',()=>{
+  const name = $('personName').value.trim();
+  const routeIndex = $('personRoute').value;
+  const stop = $('personStop').value.trim();
+
+  if(!name){
+    alert('Yolcu adını girin.');
+    return;
+  }
+  if(!data.routes.length || routeIndex === ''){
+    alert('Önce bir güzergâh oluşturun.');
+    return;
+  }
+
+  const route = data.routes[Number(routeIndex)];
+  data.people.push({
+    name,
+    kind:$('personKind').value,
+    route:route.name,
+    stop,
+    status:'yes'
+  });
+
+  if(stop && !route.stops.includes(stop)){
+    route.stops.push(stop);
+  }
+
+  saveData();
+  $('personName').value = '';
+  $('personStop').value = '';
+  render();
+  alert('Yolcu kaydedildi.');
+});
+
+$('driverAddStop').addEventListener('click',()=>{
+  const routeIndex = $('driverRoute').value;
+  const stop = $('driverStop').value.trim();
+
+  if(routeIndex === '' || !data.routes[Number(routeIndex)]){
+    alert('Önce güzergâh seçin.');
+    return;
+  }
+  if(!stop){
+    alert('Durak adını girin.');
+    return;
+  }
+
+  const route = data.routes[Number(routeIndex)];
+  if(!route.stops) route.stops = [];
+
+  if(route.stops.some(item=>item.toLocaleLowerCase('tr') === stop.toLocaleLowerCase('tr'))){
+    alert('Bu durak zaten eklenmiş.');
+    return;
+  }
+
+  route.stops.push(stop);
+  $('driverStop').value = '';
+  saveData();
+  render();
+  alert('Durak eklendi.');
+});
+
+function setStatus(index,value){
+  if(!data.people[index]) return;
+  data.people[index].status = value;
+  saveData();
+  render();
+}
+
 render();
 </script>
-</body></html>
+</body>
+</html>
