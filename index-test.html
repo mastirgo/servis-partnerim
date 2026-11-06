@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -115,6 +114,27 @@ label{display:block;margin:12px 0}
 <div class="card">
 <h2>Güzergâhlarım</h2>
 <div id="companyRoutes"></div>
+</div>
+
+<div class="card">
+<h2>Durak Yönetimi</h2>
+<p><small>Durakları yalnızca firma hesabı oluşturabilir, düzenleyebilir ve silebilir.</small></p>
+<label for="stopRoute">Güzergâh seçin</label>
+<select id="stopRoute" onchange="loadCompanyStops()">
+<option value="">Güzergâh seçin</option>
+</select>
+
+<div class="section-title">Yeni Durak Ekle</div>
+<input id="stopName" placeholder="Durak adı">
+<div class="row">
+<input id="stopTime" type="time" aria-label="Tahmini varış saati">
+<input id="stopOrder" type="number" min="1" step="1" placeholder="Durak sırası">
+</div>
+<button id="addStopBtn" onclick="addStop()">Durağı Kaydet</button>
+<div id="stopMsg" class="msg hidden"></div>
+
+<div class="section-title">Kayıtlı Duraklar</div>
+<div id="companyStopList"></div>
 </div>
 </div>
 
@@ -488,10 +508,14 @@ async function loadCompany(){
   box.innerHTML="";
   if(routeError){
     box.textContent="Güzergâhlar okunamadı: "+routeError.message;
+    document.getElementById("stopRoute").innerHTML='<option value="">Güzergâhlar okunamadı</option>';
+    document.getElementById("companyStopList").textContent="Güzergâhlar yüklenemedi.";
     return;
   }
   if(!routes||!routes.length){
     box.textContent="Henüz güzergâh eklenmedi.";
+    document.getElementById("stopRoute").innerHTML='<option value="">Önce güzergâh ekleyin</option>';
+    document.getElementById("companyStopList").textContent="Durak eklemek için önce güzergâh oluşturun.";
     return;
   }
   routes.forEach(r=>{
@@ -500,6 +524,8 @@ async function loadCompany(){
     div.textContent=(r.name||"İsimsiz güzergâh")+" — "+(r.route_type||"");
     box.appendChild(div);
   });
+
+  await loadStopRouteOptions(routes);
 }
 
 async function addRoute(){
@@ -526,6 +552,181 @@ async function addRoute(){
     await loadCompany();
   }catch(error){
     showMsg("routeMsg","Güzergâh eklenemedi: "+error.message);
+  }
+}
+
+async function loadStopRouteOptions(routes){
+  const select=document.getElementById("stopRoute");
+  const previous=select.value;
+
+  select.innerHTML='<option value="">Güzergâh seçin</option>';
+
+  (routes||[]).forEach(route=>{
+    const option=document.createElement("option");
+    option.value=route.id;
+    option.textContent=route.name||"İsimsiz güzergâh";
+    select.appendChild(option);
+  });
+
+  if(previous && (routes||[]).some(route=>route.id===previous)){
+    select.value=previous;
+  }else if(routes && routes.length){
+    select.value=routes[0].id;
+  }
+
+  await loadCompanyStops();
+}
+
+async function loadCompanyStops(){
+  const routeId=val("stopRoute");
+  const list=document.getElementById("companyStopList");
+  list.innerHTML="";
+
+  if(!routeId){
+    list.textContent="Önce güzergâh seçin.";
+    return;
+  }
+
+  list.textContent="Duraklar yükleniyor...";
+
+  try{
+    const {data,error}=await db.from("stops")
+      .select("id,route_id,name,arrival_time,stop_order")
+      .eq("route_id",routeId)
+      .order("stop_order",{ascending:true});
+
+    if(error)throw error;
+
+    if(!data || !data.length){
+      list.textContent="Bu güzergâhta henüz durak bulunmuyor.";
+      return;
+    }
+
+    list.innerHTML="";
+    data.forEach(stop=>{
+      const card=document.createElement("div");
+      card.className="item";
+
+      const title=document.createElement("strong");
+      title.textContent=stop.stop_order+". Durak";
+      card.appendChild(title);
+
+      const name=document.createElement("input");
+      name.value=stop.name||"";
+      name.placeholder="Durak adı";
+      card.appendChild(name);
+
+      const time=document.createElement("input");
+      time.type="time";
+      time.value=stop.arrival_time ? stop.arrival_time.slice(0,5) : "";
+      card.appendChild(time);
+
+      const order=document.createElement("input");
+      order.type="number";
+      order.min="1";
+      order.step="1";
+      order.value=stop.stop_order;
+      order.placeholder="Durak sırası";
+      card.appendChild(order);
+
+      const save=document.createElement("button");
+      save.textContent="Değişiklikleri Kaydet";
+      save.onclick=async()=>{
+        const newName=name.value.trim();
+        const newOrder=Number(order.value);
+        if(!newName || !Number.isInteger(newOrder) || newOrder<1){
+          alert("Durak adı ve 1 veya daha büyük tam sayı durak sırası girin.");
+          return;
+        }
+        save.disabled=true;
+        try{
+          const {error}=await db.from("stops")
+            .update({
+              name:newName,
+              arrival_time:time.value||null,
+              stop_order:newOrder
+            })
+            .eq("id",stop.id)
+            .eq("route_id",routeId);
+
+          if(error)throw error;
+          await loadCompanyStops();
+          showMsg("stopMsg","Durak güncellendi.");
+        }catch(error){
+          alert("Durak güncellenemedi: "+error.message);
+          save.disabled=false;
+        }
+      };
+      card.appendChild(save);
+
+      const del=document.createElement("button");
+      del.className="secondary";
+      del.textContent="Durağı Sil";
+      del.onclick=async()=>{
+        if(!confirm('"'+(stop.name||"Bu durak")+'" durağını silmek istiyor musunuz?'))return;
+        del.disabled=true;
+        try{
+          const {error}=await db.from("stops")
+            .delete()
+            .eq("id",stop.id)
+            .eq("route_id",routeId);
+
+          if(error)throw error;
+          await loadCompanyStops();
+          showMsg("stopMsg","Durak silindi.");
+        }catch(error){
+          alert("Durak silinemedi: "+error.message);
+          del.disabled=false;
+        }
+      };
+      card.appendChild(del);
+      list.appendChild(card);
+    });
+  }catch(error){
+    list.textContent="Duraklar alınamadı: "+error.message;
+  }
+}
+
+async function addStop(){
+  hide("stopMsg");
+  const btn=document.getElementById("addStopBtn");
+  const routeId=val("stopRoute");
+  const name=val("stopName");
+  const time=val("stopTime");
+  const orderText=val("stopOrder");
+  const order=Number(orderText);
+
+  if(!routeId){
+    showMsg("stopMsg","Önce güzergâh seçin.");
+    return;
+  }
+  if(!name || !orderText || !Number.isInteger(order) || order<1){
+    showMsg("stopMsg","Durak adı ve 1 veya daha büyük tam sayı durak sırası girin.");
+    return;
+  }
+
+  btn.disabled=true;
+  btn.textContent="Kaydediliyor...";
+  try{
+    const {error}=await db.from("stops").insert({
+      route_id:routeId,
+      name:name,
+      arrival_time:time||null,
+      stop_order:order
+    });
+
+    if(error)throw error;
+
+    document.getElementById("stopName").value="";
+    document.getElementById("stopTime").value="";
+    document.getElementById("stopOrder").value="";
+    showMsg("stopMsg","Durak başarıyla eklendi.");
+    await loadCompanyStops();
+  }catch(error){
+    showMsg("stopMsg","Durak eklenemedi: "+error.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Durağı Kaydet";
   }
 }
 
@@ -609,7 +810,6 @@ async function loadDriverPassengers(){
   list.textContent="Yolcular yükleniyor...";
 
   try{
-    // Şoförün kendi güzergâhındaki yolcu profilleri istenir.
     const {data:passengers,error}=await db.from("profiles")
       .select("id,full_name,passenger_kind,morning_enabled,evening_enabled,stop_id")
       .eq("route_id",currentProfile.route_id)
@@ -624,7 +824,6 @@ async function loadDriverPassengers(){
       return;
     }
 
-    // Aynı güzergâhın durakları alınır.
     const {data:stops,error:stopError}=await db.from("stops")
       .select("id,name,stop_order")
       .eq("route_id",currentProfile.route_id)
@@ -638,7 +837,6 @@ async function loadDriverPassengers(){
     });
 
     list.innerHTML="";
-
     passengers.forEach(passenger=>{
       const card=document.createElement("div");
       card.className="passenger-card";
@@ -671,7 +869,6 @@ async function loadDriverPassengers(){
         kind.textContent="Yolcu türü: "+passenger.passenger_kind;
         card.appendChild(kind);
       }
-
       list.appendChild(card);
     });
 
