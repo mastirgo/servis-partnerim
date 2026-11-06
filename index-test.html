@@ -28,18 +28,20 @@ label{display:block;margin:12px 0}
 </style>
 </head>
 <body>
+
 <header>
 <h1>Servis Partnerim</h1>
 <p>Okul ve personel servis yönetimi</p>
 </header>
 
 <main>
+
 <section id="auth">
 <div class="card">
 <h2>Giriş Yap</h2>
 <input id="email" type="email" placeholder="E-posta adresi">
 <input id="password" type="password" placeholder="Şifre">
-<button onclick="login()">Giriş Yap</button>
+<button id="loginBtn" onclick="login()">Giriş Yap</button>
 <div id="authMsg" class="msg hidden"></div>
 </div>
 
@@ -62,7 +64,10 @@ label{display:block;margin:12px 0}
 
 <section id="onboarding" class="hidden">
 <div class="card">
+<div class="row">
 <h2 id="setupTitle">Hesap Kurulumu</h2>
+<button class="secondary" onclick="logout()">Çıkış</button>
+</div>
 <div id="setupFields"></div>
 <div id="setupMsg" class="msg hidden"></div>
 </div>
@@ -124,12 +129,13 @@ Akşam servisini kullanıyorum
 </div>
 </div>
 </section>
+
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SUPABASE_URL = "https://xfwgzpoeclfyrizmtxiz.supabase.co";
-const SUPABASE_KEY = "sb_publishable_JvhgtssPUHcLzeOIs3GCkA_JWu6v3Ra";
+const SUPABASE_URL="https://xfwgzpoeclfyrizmtxiz.supabase.co";
+const SUPABASE_KEY="sb_publishable_JvhgtssPUHcLzeOIs3GCkA_JWu6v3Ra";
 
 let db=null;
 let currentUser=null;
@@ -165,10 +171,7 @@ function initSupabase(){
     showMsg("authMsg","Supabase kütüphanesi yüklenemedi. İnternet bağlantısını kontrol edin.");
     return false;
   }
-  if(!SUPABASE_KEY.startsWith("sb_publishable_")){
-    showMsg("authMsg","Supabase anahtarı hatalı.");
-    return false;
-  }
+
   db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
     auth:{
       persistSession:true,
@@ -179,12 +182,26 @@ function initSupabase(){
   return true;
 }
 
+// Oturumu yerel cihazdan temizle
+async function logout(){
+  try{
+    if(db){
+      await db.auth.signOut({scope:"local"});
+    }
+  }catch(e){
+    console.error("Çıkış hatası:",e);
+  }
+
+  currentUser=null;
+  currentProfile=null;
+
+  showOnly("auth");
+  showMsg("authMsg","Oturum kapatıldı. Lütfen e-posta ve şifrenizle yeniden giriş yapın.");
+  document.getElementById("password").value="";
+}
+
 async function signup(){
   hide("regMsg");
-  if(!db){
-    showMsg("regMsg","Supabase bağlantısı hazır değil. Sayfayı yenileyin.");
-    return;
-  }
 
   const btn=document.getElementById("signupBtn");
   const name=val("regName");
@@ -214,15 +231,12 @@ async function signup(){
         emailRedirectTo:"https://mastirgo.github.io/servis-partnerim/index-test.html"
       }
     });
+
     if(error)throw error;
 
-    showMsg("regMsg",
-      "Hesap oluşturma isteği gönderildi.\n"+
-      "E-posta doğrulaması isteniyorsa gelen kutunuzu kontrol edin.\n"+
-      "Doğrulama tamamlandıktan sonra giriş yapın."
-    );
+    showMsg("regMsg","Hesap oluşturma isteği gönderildi.\nE-posta doğrulaması isteniyorsa gelen kutunuzu kontrol edin.\nDoğrulama tamamlandıktan sonra giriş yapın.");
   }catch(error){
-    showMsg("regMsg","Kayıt hatası: "+(error.message||String(error)));
+    showMsg("regMsg","Kayıt hatası: "+error.message);
   }finally{
     btn.disabled=false;
     btn.textContent="Hesap Oluştur";
@@ -231,11 +245,8 @@ async function signup(){
 
 async function login(){
   hide("authMsg");
-  if(!db){
-    showMsg("authMsg","Supabase bağlantısı hazır değil.");
-    return;
-  }
 
+  const btn=document.getElementById("loginBtn");
   const email=val("email");
   const password=val("password");
 
@@ -244,13 +255,26 @@ async function login(){
     return;
   }
 
+  btn.disabled=true;
+  btn.textContent="Giriş yapılıyor...";
+
   try{
+    // Önce eski yerel oturumu temizle
+    await db.auth.signOut({scope:"local"});
+
     const {data,error}=await db.auth.signInWithPassword({email,password});
     if(error)throw error;
+    if(!data.user)throw new Error("Kullanıcı bilgisi alınamadı.");
+
     currentUser=data.user;
     await loadProfile();
+
   }catch(error){
-    showMsg("authMsg","Giriş hatası: "+(error.message||String(error)));
+    showOnly("auth");
+    showMsg("authMsg","Giriş hatası: "+error.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Giriş Yap";
   }
 }
 
@@ -273,11 +297,13 @@ async function loadProfile(){
 
   if(!data){
     const role=currentUser.user_metadata?.role;
+
     if(!["company","driver","passenger"].includes(role)){
       showOnly("auth");
       showMsg("authMsg","Hesap rolü bulunamadı.");
       return;
     }
+
     showSetup(role);
     return;
   }
@@ -288,6 +314,7 @@ async function loadProfile(){
 
 function showSetup(role){
   showOnly("onboarding");
+
   document.getElementById("setupTitle").textContent=roleName(role)+" Hesap Kurulumu";
 
   if(role==="company"){
@@ -310,20 +337,22 @@ function showSetup(role){
 
 async function createCompany(){
   hide("setupMsg");
+
   try{
     const {data:userData,error:userError}=await db.auth.getUser();
     if(userError)throw userError;
     if(!userData.user)throw new Error("Oturum bulunamadı. Tekrar giriş yapın.");
 
     currentUser=userData.user;
+
     const {error}=await db.rpc("create_company",{
       p_company_name:currentUser.user_metadata.full_name,
       p_full_name:currentUser.user_metadata.full_name,
       p_phone:currentUser.user_metadata.phone||null
     });
+
     if(error)throw error;
 
-    showMsg("setupMsg","Firma oluşturuldu. Profil bilgileri yükleniyor...");
     await loadProfile();
   }catch(error){
     showMsg("setupMsg","Firma oluşturulamadı: "+error.message);
@@ -332,6 +361,7 @@ async function createCompany(){
 
 async function findRoutes(){
   hide("setupMsg");
+
   const code=val("joinCode");
   if(!code){
     showMsg("setupMsg","Firma kodunu girin.");
@@ -375,89 +405,74 @@ async function joinCompany(){
   }
 
   btn.disabled=true;
-  btn.textContent="Katılım kontrol ediliyor...";
+  btn.textContent="Oturum kontrol ediliyor...";
 
   try{
-    // Güncel Supabase oturumunu doğrula
+    // Oturumu ve kullanıcıyı sunucudan tekrar doğrula
     const {data:sessionData,error:sessionError}=await db.auth.getSession();
     if(sessionError)throw sessionError;
 
     if(!sessionData.session){
-      throw new Error("Aktif oturum bulunamadı. Çıkış yapıp tekrar giriş yapın.");
+      throw new Error("Oturum bulunamadı. Çıkış yapıp yeniden giriş yapın.");
     }
 
-    // Kullanıcıyı sunucu üzerinden doğrula
     const {data:userData,error:userError}=await db.auth.getUser();
     if(userError)throw userError;
 
-    const verifiedUser=userData.user;
-    if(!verifiedUser){
-      throw new Error("Supabase kullanıcı doğrulaması başarısız. Tekrar giriş yapın.");
+    const user=userData.user;
+    if(!user){
+      throw new Error("Supabase kullanıcıyı doğrulayamadı. Çıkış yapıp yeniden giriş yapın.");
     }
 
-    if(verifiedUser.id!==sessionData.session.user.id){
-      throw new Error("Oturum kullanıcı kimlikleri uyuşmuyor. Çıkış yapıp tekrar giriş yapın.");
+    if(user.id!==sessionData.session.user.id){
+      throw new Error("Oturum kimliği uyuşmuyor. Çıkış yapıp yeniden giriş yapın.");
     }
 
-    currentUser=verifiedUser;
-    const meta=verifiedUser.user_metadata||{};
+    currentUser=user;
+
+    const meta=user.user_metadata||{};
     const role=meta.role;
 
     if(!["driver","passenger"].includes(role)){
-      throw new Error("Hesap rolü şoför veya yolcu olmalıdır.");
+      throw new Error("Hesap rolü geçersiz.");
     }
 
-    // Aynı kullanıcının önceden profili var mı?
-    const {data:existingProfile,error:profileCheckError}=await db
+    // Önceden profil oluşmuşsa tekrar katılım yapma
+    const {data:existing,error:existingError}=await db
       .from("profiles")
-      .select("id")
-      .eq("id",verifiedUser.id)
+      .select("*")
+      .eq("id",user.id)
       .maybeSingle();
 
-    if(profileCheckError)throw profileCheckError;
+    if(existingError)throw existingError;
 
-    if(existingProfile){
-      currentProfile=existingProfile;
-      await loadProfile();
+    if(existing){
+      currentProfile=existing;
+      await showPanel();
       return;
     }
 
-    // Firma katılım RPC çağrısı
-    const {data,error}=await db.rpc("join_company",{
+    btn.textContent="Firmaya katılıyor...";
+
+    const {error}=await db.rpc("join_company",{
       p_join_code:code,
       p_role:role,
       p_route_id:routeId,
-      p_full_name:meta.full_name||verifiedUser.email,
+      p_full_name:meta.full_name||user.email,
       p_phone:meta.phone||null,
       p_morning_enabled:true,
       p_evening_enabled:true
     });
 
     if(error){
-      throw new Error(
-        "Katılım RPC hatası: "+error.message+
-        "\nKod: "+(error.code||"Belirtilmedi")
-      );
+      throw new Error("Katılım işlemi başarısız: "+error.message+
+        " (Kod: "+(error.code||"bilinmiyor")+")");
     }
 
-    // Profilin gerçekten oluştuğunu kontrol et
-    const {data:profile,error:readError}=await db
-      .from("profiles")
-      .select("*")
-      .eq("id",verifiedUser.id)
-      .maybeSingle();
-
-    if(readError)throw readError;
-    if(!profile){
-      throw new Error("Katılım işlemi döndü ancak profil kaydı bulunamadı.");
-    }
-
-    currentProfile=profile;
-    showMsg("setupMsg","Firmaya katılım tamamlandı.");
-    await showPanel();
+    await loadProfile();
 
   }catch(error){
-    showMsg("setupMsg","Katılım başarısız: "+(error.message||String(error)));
+    showMsg("setupMsg","Katılım başarısız: "+error.message);
   }finally{
     btn.disabled=false;
     btn.textContent="Firmaya Katıl";
@@ -470,6 +485,7 @@ async function showPanel(){
   hide("memberPanel");
 
   const p=currentProfile;
+
   document.getElementById("welcome").textContent="Merhaba, "+(p.full_name||"Kullanıcı");
   document.getElementById("profileInfo").textContent="Hesap türü: "+roleName(p.role);
 
@@ -478,11 +494,13 @@ async function showPanel(){
     await loadCompany();
   }else{
     show("memberPanel");
+
     if(p.role==="passenger"){
       show("ridePreferenceCard");
     }else{
       hide("ridePreferenceCard");
     }
+
     await loadMember();
   }
 }
@@ -497,8 +515,7 @@ async function loadCompany(){
     document.getElementById("companyInfo").textContent="Firma bilgisi okunamadı: "+error.message;
   }else if(company){
     document.getElementById("companyInfo").textContent=
-      "Firma: "+(company.name||"")+
-      " | Firma kodu: "+(company.join_code||"Henüz görüntülenemiyor");
+      "Firma: "+(company.name||"")+" | Firma kodu: "+(company.join_code||"Henüz görüntülenemiyor");
   }
 
   const {data:routes,error:routeError}=await db.from("routes")
@@ -552,6 +569,7 @@ async function addRoute(){
       document.getElementById(id).value="";
     });
     await loadCompany();
+
   }catch(error){
     showMsg("routeMsg","Güzergâh eklenemedi: "+error.message);
   }
@@ -559,6 +577,7 @@ async function addRoute(){
 
 async function loadMember(){
   const p=currentProfile;
+
   let info="Ad Soyad: "+(p.full_name||"")+" | Rol: "+roleName(p.role);
 
   if(p.role==="driver"){
@@ -567,7 +586,8 @@ async function loadMember(){
 
   if(p.role==="passenger"){
     info+=" | Sabah: "+(p.morning_enabled?"Evet":"Hayır")+
-          " | Akşam: "+(p.evening_enabled?"Evet":"Hayır");
+      " | Akşam: "+(p.evening_enabled?"Evet":"Hayır");
+
     document.getElementById("morning").checked=!!p.morning_enabled;
     document.getElementById("evening").checked=!!p.evening_enabled;
   }
@@ -586,20 +606,15 @@ async function saveRideStatus(){
       p_morning:document.getElementById("morning").checked,
       p_evening:document.getElementById("evening").checked
     });
+
     if(error)throw error;
 
     showMsg("rideMsg","Servis tercihleriniz kaydedildi.");
     await loadProfile();
+
   }catch(error){
     showMsg("rideMsg","Tercihler kaydedilemedi: "+error.message);
   }
-}
-
-async function logout(){
-  if(db)await db.auth.signOut();
-  currentUser=null;
-  currentProfile=null;
-  showOnly("auth");
 }
 
 async function start(){
@@ -609,11 +624,28 @@ async function start(){
     const {data,error}=await db.auth.getSession();
     if(error)throw error;
 
-    if(data.session){
-      currentUser=data.session.user;
-      await loadProfile();
+    if(!data.session){
+      showOnly("auth");
+      return;
     }
+
+    // Otomatik açılan eski oturumun sunucuda geçerli olup olmadığını denetle
+    const {data:userData,error:userError}=await db.auth.getUser();
+
+    if(userError||!userData.user){
+      await db.auth.signOut({scope:"local"});
+      currentUser=null;
+      currentProfile=null;
+      showOnly("auth");
+      showMsg("authMsg","Eski oturum geçersizdi. Lütfen yeniden giriş yapın.");
+      return;
+    }
+
+    currentUser=userData.user;
+    await loadProfile();
+
   }catch(error){
+    showOnly("auth");
     showMsg("authMsg","Başlatma hatası: "+error.message);
   }
 }
