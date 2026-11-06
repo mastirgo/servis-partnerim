@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -118,12 +119,11 @@ label{display:block;margin:12px 0}
 
 <div class="card">
 <h2>Durak Yönetimi</h2>
-<p><small>Durakları yalnızca firma hesabı oluşturabilir, düzenleyebilir ve silebilir.</small></p>
+<p><small>Durakları firma hesabı oluşturabilir, düzenleyebilir ve silebilir.</small></p>
 <label for="stopRoute">Güzergâh seçin</label>
 <select id="stopRoute" onchange="loadCompanyStops()">
 <option value="">Güzergâh seçin</option>
 </select>
-
 <div class="section-title">Yeni Durak Ekle</div>
 <input id="stopName" placeholder="Durak adı">
 <div class="row">
@@ -132,7 +132,6 @@ label{display:block;margin:12px 0}
 </div>
 <button id="addStopBtn" onclick="addStop()">Durağı Kaydet</button>
 <div id="stopMsg" class="msg hidden"></div>
-
 <div class="section-title">Kayıtlı Duraklar</div>
 <div id="companyStopList"></div>
 </div>
@@ -164,6 +163,18 @@ Akşam servisini kullanıyorum
 </label>
 <button onclick="saveRideStatus()">Tercihlerimi Kaydet</button>
 <div id="rideMsg" class="msg hidden"></div>
+</div>
+
+<div class="card hidden" id="passengerStopCard">
+<h2>Durağımı Seç</h2>
+<p><small>Yalnızca kayıtlı olduğunuz güzergâhtaki duraklardan seçim yapabilirsiniz.</small></p>
+<div id="passengerStopInfo" class="info-line">Duraklar yükleniyor...</div>
+<label for="passengerStopSelect">Bineceğiniz durak</label>
+<select id="passengerStopSelect">
+<option value="">Durak seçin</option>
+</select>
+<button id="savePassengerStopBtn" onclick="savePassengerStop()">Durağımı Kaydet</button>
+<div id="passengerStopMsg" class="msg hidden"></div>
 </div>
 </div>
 </section>
@@ -473,6 +484,7 @@ async function showPanel(){
   hide("memberPanel");
   hide("driverPassengerCard");
   hide("ridePreferenceCard");
+  hide("passengerStopCard");
 
   const p=currentProfile;
   document.getElementById("welcome").textContent="Merhaba, "+(p.full_name||"Kullanıcı");
@@ -483,9 +495,14 @@ async function showPanel(){
     await loadCompany();
   }else{
     show("memberPanel");
-    if(p.role==="passenger")show("ridePreferenceCard");
+    if(p.role==="passenger"){
+      show("ridePreferenceCard");
+      show("passengerStopCard");
+    }
     if(p.role==="driver")show("driverPassengerCard");
     await loadMember();
+
+    if(p.role==="passenger")await loadPassengerStops();
     if(p.role==="driver")await loadDriverPassengers();
   }
 }
@@ -792,6 +809,108 @@ async function loadMember(){
   }
 }
 
+/* YOLCU DURAK SEÇİMİ */
+async function loadPassengerStops(){
+  const select=document.getElementById("passengerStopSelect");
+  const info=document.getElementById("passengerStopInfo");
+  const p=currentProfile;
+
+  hide("passengerStopMsg");
+  select.innerHTML='<option value="">Durak seçin</option>';
+
+  if(!p || p.role!=="passenger"){
+    info.textContent="Bu bölüm yalnızca yolcu hesapları içindir.";
+    return;
+  }
+
+  if(!p.route_id){
+    info.textContent="Hesabınıza henüz güzergâh atanmamış.";
+    return;
+  }
+
+  info.textContent="Güzergâh durakları yükleniyor...";
+
+  try{
+    const {data:route,error:routeError}=await db.from("routes")
+      .select("name")
+      .eq("id",p.route_id)
+      .maybeSingle();
+
+    if(routeError)throw routeError;
+
+    const {data:stops,error}=await db.from("stops")
+      .select("id,name,arrival_time,stop_order")
+      .eq("route_id",p.route_id)
+      .order("stop_order",{ascending:true});
+
+    if(error)throw error;
+
+    if(!stops || stops.length===0){
+      info.textContent="Bu güzergâhta henüz durak tanımlanmamış. Firma yetkilisiyle görüşün.";
+      return;
+    }
+
+    info.textContent="Güzergâh: "+(route?.name||"Servis güzergâhınız");
+
+    stops.forEach(stop=>{
+      const option=document.createElement("option");
+      option.value=stop.id;
+      const time=stop.arrival_time ? " — "+stop.arrival_time.slice(0,5) : "";
+      option.textContent=stop.stop_order+". "+stop.name+time;
+      select.appendChild(option);
+    });
+
+    if(p.stop_id){
+      const selected=stops.find(s=>s.id===p.stop_id);
+      if(selected){
+        select.value=selected.id;
+        showMsg("passengerStopMsg","Kayıtlı durağınız: "+selected.name);
+      }else{
+        showMsg("passengerStopMsg","Önceden seçtiğiniz durak artık bu güzergâhta bulunmuyor. Yeni durak seçin.");
+      }
+    }
+  }catch(error){
+    info.textContent="Duraklar yüklenemedi.";
+    showMsg("passengerStopMsg","Duraklar alınamadı: "+error.message);
+  }
+}
+
+async function savePassengerStop(){
+  hide("passengerStopMsg");
+
+  if(!currentProfile || currentProfile.role!=="passenger"){
+    showMsg("passengerStopMsg","Bu işlem yalnızca yolcu hesapları içindir.");
+    return;
+  }
+
+  const stopId=val("passengerStopSelect");
+  if(!stopId){
+    showMsg("passengerStopMsg","Lütfen bineceğiniz durağı seçin.");
+    return;
+  }
+
+  const btn=document.getElementById("savePassengerStopBtn");
+  btn.disabled=true;
+  btn.textContent="Kaydediliyor...";
+
+  try{
+    const {error}=await db.rpc("set_my_stop",{p_stop_id:stopId});
+    if(error)throw error;
+
+    const selected=document.getElementById("passengerStopSelect");
+    const selectedText=selected.options[selected.selectedIndex]?.textContent||"Seçilen durak";
+
+    currentProfile.stop_id=stopId;
+    showMsg("passengerStopMsg","Durağınız başarıyla kaydedildi: "+selectedText);
+    await loadMember();
+  }catch(error){
+    showMsg("passengerStopMsg","Durak kaydedilemedi: "+error.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Durağımı Kaydet";
+  }
+}
+
 async function loadDriverPassengers(){
   const list=document.getElementById("driverPassengerList");
   hide("driverPassengerMsg");
@@ -890,8 +1009,10 @@ async function saveRideStatus(){
       p_evening:document.getElementById("evening").checked
     });
     if(error)throw error;
+    currentProfile.morning_enabled=document.getElementById("morning").checked;
+    currentProfile.evening_enabled=document.getElementById("evening").checked;
     showMsg("rideMsg","Servis tercihleriniz kaydedildi.");
-    await loadProfile();
+    await loadMember();
   }catch(error){
     showMsg("rideMsg","Tercihler kaydedilemedi: "+error.message);
   }
