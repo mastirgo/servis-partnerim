@@ -30,6 +30,11 @@ label{display:block;margin:12px 0}
 .info-line{padding:11px 12px;margin:7px 0;background:#f3f6fa;border-radius:8px;overflow-wrap:anywhere}
 .info-label{font-weight:bold;color:var(--navy)}
 .section-title{font-size:14px;font-weight:bold;color:#64748b;margin:16px 0 6px}
+.passenger-card{padding:14px;border:1px solid #dce3eb;border-radius:10px;margin:10px 0;background:#fff}
+.passenger-name{font-weight:bold;color:var(--navy);font-size:16px;margin-bottom:9px}
+.passenger-detail{font-size:14px;margin:6px 0}
+.status-yes{color:#087b54;font-weight:bold}
+.status-no{color:#b42318;font-weight:bold}
 </style>
 </head>
 <body>
@@ -117,6 +122,14 @@ label{display:block;margin:12px 0}
 <div class="card">
 <h2>Servis Bilgilerim</h2>
 <div id="memberInfo"></div>
+</div>
+
+<div class="card hidden" id="driverPassengerCard">
+<h2>Yolcu Listem</h2>
+<p><small>Yalnızca size atanmış güzergâhtaki yolcular listelenir.</small></p>
+<button onclick="loadDriverPassengers()">Listeyi Yenile</button>
+<div id="driverPassengerList"></div>
+<div id="driverPassengerMsg" class="msg hidden"></div>
 </div>
 
 <div class="card hidden" id="ridePreferenceCard">
@@ -438,6 +451,8 @@ async function showPanel(){
   showOnly("panel");
   hide("companyPanel");
   hide("memberPanel");
+  hide("driverPassengerCard");
+  hide("ridePreferenceCard");
 
   const p=currentProfile;
   document.getElementById("welcome").textContent="Merhaba, "+(p.full_name||"Kullanıcı");
@@ -449,8 +464,9 @@ async function showPanel(){
   }else{
     show("memberPanel");
     if(p.role==="passenger")show("ridePreferenceCard");
-    else hide("ridePreferenceCard");
+    if(p.role==="driver")show("driverPassengerCard");
     await loadMember();
+    if(p.role==="driver")await loadDriverPassengers();
   }
 }
 
@@ -572,6 +588,97 @@ async function loadMember(){
 
     document.getElementById("morning").checked=!!p.morning_enabled;
     document.getElementById("evening").checked=!!p.evening_enabled;
+  }
+}
+
+async function loadDriverPassengers(){
+  const list=document.getElementById("driverPassengerList");
+  hide("driverPassengerMsg");
+  list.innerHTML="";
+
+  if(!currentProfile||currentProfile.role!=="driver"){
+    showMsg("driverPassengerMsg","Bu liste yalnızca şoför hesapları içindir.");
+    return;
+  }
+
+  if(!currentProfile.route_id){
+    showMsg("driverPassengerMsg","Size henüz bir güzergâh atanmamış.");
+    return;
+  }
+
+  list.textContent="Yolcular yükleniyor...";
+
+  try{
+    // Şoförün kendi güzergâhındaki yolcu profilleri istenir.
+    const {data:passengers,error}=await db.from("profiles")
+      .select("id,full_name,passenger_kind,morning_enabled,evening_enabled,stop_id")
+      .eq("route_id",currentProfile.route_id)
+      .eq("role","passenger")
+      .order("full_name",{ascending:true});
+
+    if(error)throw error;
+
+    if(!passengers||passengers.length===0){
+      list.innerHTML="";
+      showMsg("driverPassengerMsg","Bu güzergâhta henüz kayıtlı yolcu bulunmuyor.");
+      return;
+    }
+
+    // Aynı güzergâhın durakları alınır.
+    const {data:stops,error:stopError}=await db.from("stops")
+      .select("id,name,stop_order")
+      .eq("route_id",currentProfile.route_id)
+      .order("stop_order",{ascending:true});
+
+    if(stopError)throw stopError;
+
+    const stopMap={};
+    (stops||[]).forEach(stop=>{
+      stopMap[stop.id]=stop.name;
+    });
+
+    list.innerHTML="";
+
+    passengers.forEach(passenger=>{
+      const card=document.createElement("div");
+      card.className="passenger-card";
+
+      const name=document.createElement("div");
+      name.className="passenger-name";
+      name.textContent=passenger.full_name||"İsimsiz yolcu";
+      card.appendChild(name);
+
+      const stop=document.createElement("div");
+      stop.className="passenger-detail";
+      stop.textContent="Durak: "+(passenger.stop_id?(stopMap[passenger.stop_id]||"Durak adı bulunamadı"):"Durak seçilmemiş");
+      card.appendChild(stop);
+
+      const morning=document.createElement("div");
+      morning.className="passenger-detail";
+      morning.textContent="Sabah servisi: "+(passenger.morning_enabled?"Kullanıyor":"Kullanmıyor");
+      morning.classList.add(passenger.morning_enabled?"status-yes":"status-no");
+      card.appendChild(morning);
+
+      const evening=document.createElement("div");
+      evening.className="passenger-detail";
+      evening.textContent="Akşam servisi: "+(passenger.evening_enabled?"Kullanıyor":"Kullanmıyor");
+      evening.classList.add(passenger.evening_enabled?"status-yes":"status-no");
+      card.appendChild(evening);
+
+      if(passenger.passenger_kind){
+        const kind=document.createElement("div");
+        kind.className="passenger-detail";
+        kind.textContent="Yolcu türü: "+passenger.passenger_kind;
+        card.appendChild(kind);
+      }
+
+      list.appendChild(card);
+    });
+
+    showMsg("driverPassengerMsg",passengers.length+" yolcu listelendi.");
+  }catch(error){
+    list.innerHTML="";
+    showMsg("driverPassengerMsg","Yolcu listesi alınamadı: "+error.message);
   }
 }
 
