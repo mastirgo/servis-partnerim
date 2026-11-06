@@ -28,14 +28,12 @@ label{display:block;margin:12px 0}
 </style>
 </head>
 <body>
-
 <header>
 <h1>Servis Partnerim</h1>
 <p>Okul ve personel servis yönetimi</p>
 </header>
 
 <main>
-
 <section id="auth">
 <div class="card">
 <h2>Giriş Yap</h2>
@@ -126,38 +124,39 @@ Akşam servisini kullanıyorum
 </div>
 </div>
 </section>
-
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* SUPABASE AYARLARI */
 const SUPABASE_URL = "https://xfwgzpoeclfyrizmtxiz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_JvhgtssPUHcLzeOIs3GCkA_JWu6v3Ra";
 
-let db = null;
-let currentUser = null;
-let currentProfile = null;
+let db=null;
+let currentUser=null;
+let currentProfile=null;
 
 function showMsg(id,text){
   const el=document.getElementById(id);
+  if(!el)return;
   el.textContent=text;
   el.classList.remove("hidden");
 }
 function hide(id){
-  document.getElementById(id).classList.add("hidden");
+  const el=document.getElementById(id);
+  if(el)el.classList.add("hidden");
 }
 function show(id){
-  document.getElementById(id).classList.remove("hidden");
+  const el=document.getElementById(id);
+  if(el)el.classList.remove("hidden");
 }
 function val(id){
   return document.getElementById(id).value.trim();
 }
 function roleName(role){
-  return ({company:"Firma",driver:"Şoför",passenger:"Yolcu"})[role] || role;
+  return ({company:"Firma",driver:"Şoför",passenger:"Yolcu"})[role]||role;
 }
 function showOnly(section){
-  ["auth","onboarding","panel"].forEach(id=>hide(id));
+  ["auth","onboarding","panel"].forEach(hide);
   show(section);
 }
 
@@ -166,19 +165,22 @@ function initSupabase(){
     showMsg("authMsg","Supabase kütüphanesi yüklenemedi. İnternet bağlantısını kontrol edin.");
     return false;
   }
-
   if(!SUPABASE_KEY.startsWith("sb_publishable_")){
-    showMsg("authMsg","Supabase anahtarı hatalı. SUPABASE_KEY satırını kontrol edin.");
+    showMsg("authMsg","Supabase anahtarı hatalı.");
     return false;
   }
-
-  db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+    auth:{
+      persistSession:true,
+      autoRefreshToken:true,
+      detectSessionInUrl:true
+    }
+  });
   return true;
 }
 
 async function signup(){
   hide("regMsg");
-
   if(!db){
     showMsg("regMsg","Supabase bağlantısı hazır değil. Sayfayı yenileyin.");
     return;
@@ -195,7 +197,6 @@ async function signup(){
     showMsg("regMsg","Ad, e-posta ve şifre alanlarını doldurun.");
     return;
   }
-
   if(password.length<6){
     showMsg("regMsg","Şifre en az 6 karakter olmalıdır.");
     return;
@@ -205,27 +206,21 @@ async function signup(){
   btn.textContent="Hesap oluşturuluyor...";
 
   try{
-    const {data,error}=await db.auth.signUp({
+    const {error}=await db.auth.signUp({
       email,
       password,
       options:{
-        data:{
-          full_name:name,
-          phone:phone,
-          role:role
-        },
+        data:{full_name:name,phone:phone,role:role},
         emailRedirectTo:"https://mastirgo.github.io/servis-partnerim/index-test.html"
       }
     });
-
-    if(error) throw error;
+    if(error)throw error;
 
     showMsg("regMsg",
       "Hesap oluşturma isteği gönderildi.\n"+
       "E-posta doğrulaması isteniyorsa gelen kutunuzu kontrol edin.\n"+
       "Doğrulama tamamlandıktan sonra giriş yapın."
     );
-
   }catch(error){
     showMsg("regMsg","Kayıt hatası: "+(error.message||String(error)));
   }finally{
@@ -236,7 +231,6 @@ async function signup(){
 
 async function login(){
   hide("authMsg");
-
   if(!db){
     showMsg("authMsg","Supabase bağlantısı hazır değil.");
     return;
@@ -251,22 +245,21 @@ async function login(){
   }
 
   try{
-    const {data,error}=await db.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if(error) throw error;
-
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error)throw error;
     currentUser=data.user;
     await loadProfile();
-
   }catch(error){
     showMsg("authMsg","Giriş hatası: "+(error.message||String(error)));
   }
 }
 
 async function loadProfile(){
+  if(!currentUser){
+    showOnly("auth");
+    return;
+  }
+
   const {data,error}=await db.from("profiles")
     .select("*")
     .eq("id",currentUser.id)
@@ -280,13 +273,11 @@ async function loadProfile(){
 
   if(!data){
     const role=currentUser.user_metadata?.role;
-
     if(!["company","driver","passenger"].includes(role)){
       showOnly("auth");
       showMsg("authMsg","Hesap rolü bulunamadı.");
       return;
     }
-
     showSetup(role);
     return;
   }
@@ -297,9 +288,7 @@ async function loadProfile(){
 
 function showSetup(role){
   showOnly("onboarding");
-
-  document.getElementById("setupTitle").textContent=
-    roleName(role)+" Hesap Kurulumu";
+  document.getElementById("setupTitle").textContent=roleName(role)+" Hesap Kurulumu";
 
   if(role==="company"){
     document.getElementById("setupFields").innerHTML=`
@@ -314,26 +303,28 @@ function showSetup(role){
       <select id="joinRoute">
         <option value="">Önce firma kodunu girin</option>
       </select>
-      <button onclick="joinCompany()">Firmaya Katıl</button>
+      <button id="joinBtn" onclick="joinCompany()">Firmaya Katıl</button>
     `;
   }
 }
 
 async function createCompany(){
   hide("setupMsg");
-
   try{
+    const {data:userData,error:userError}=await db.auth.getUser();
+    if(userError)throw userError;
+    if(!userData.user)throw new Error("Oturum bulunamadı. Tekrar giriş yapın.");
+
+    currentUser=userData.user;
     const {error}=await db.rpc("create_company",{
       p_company_name:currentUser.user_metadata.full_name,
       p_full_name:currentUser.user_metadata.full_name,
-      p_phone:currentUser.user_metadata.phone || null
+      p_phone:currentUser.user_metadata.phone||null
     });
-
-    if(error) throw error;
+    if(error)throw error;
 
     showMsg("setupMsg","Firma oluşturuldu. Profil bilgileri yükleniyor...");
     await loadProfile();
-
   }catch(error){
     showMsg("setupMsg","Firma oluşturulamadı: "+error.message);
   }
@@ -341,20 +332,15 @@ async function createCompany(){
 
 async function findRoutes(){
   hide("setupMsg");
-
   const code=val("joinCode");
-
   if(!code){
     showMsg("setupMsg","Firma kodunu girin.");
     return;
   }
 
   try{
-    const {data,error}=await db.rpc("get_company_routes",{
-      p_join_code:code
-    });
-
-    if(error) throw error;
+    const {data,error}=await db.rpc("get_company_routes",{p_join_code:code});
+    if(error)throw error;
 
     const select=document.getElementById("joinRoute");
     select.innerHTML='<option value="">Güzergâh seçin</option>';
@@ -371,7 +357,6 @@ async function findRoutes(){
     }else{
       showMsg("setupMsg",data.length+" güzergâh bulundu.");
     }
-
   }catch(error){
     showMsg("setupMsg","Güzergâhlar alınamadı: "+error.message);
   }
@@ -380,6 +365,7 @@ async function findRoutes(){
 async function joinCompany(){
   hide("setupMsg");
 
+  const btn=document.getElementById("joinBtn");
   const code=val("joinCode");
   const routeId=val("joinRoute");
 
@@ -388,57 +374,115 @@ async function joinCompany(){
     return;
   }
 
-  try{
-    const meta=currentUser.user_metadata||{};
+  btn.disabled=true;
+  btn.textContent="Katılım kontrol ediliyor...";
 
-    const {error}=await db.rpc("join_company",{
+  try{
+    // Güncel Supabase oturumunu doğrula
+    const {data:sessionData,error:sessionError}=await db.auth.getSession();
+    if(sessionError)throw sessionError;
+
+    if(!sessionData.session){
+      throw new Error("Aktif oturum bulunamadı. Çıkış yapıp tekrar giriş yapın.");
+    }
+
+    // Kullanıcıyı sunucu üzerinden doğrula
+    const {data:userData,error:userError}=await db.auth.getUser();
+    if(userError)throw userError;
+
+    const verifiedUser=userData.user;
+    if(!verifiedUser){
+      throw new Error("Supabase kullanıcı doğrulaması başarısız. Tekrar giriş yapın.");
+    }
+
+    if(verifiedUser.id!==sessionData.session.user.id){
+      throw new Error("Oturum kullanıcı kimlikleri uyuşmuyor. Çıkış yapıp tekrar giriş yapın.");
+    }
+
+    currentUser=verifiedUser;
+    const meta=verifiedUser.user_metadata||{};
+    const role=meta.role;
+
+    if(!["driver","passenger"].includes(role)){
+      throw new Error("Hesap rolü şoför veya yolcu olmalıdır.");
+    }
+
+    // Aynı kullanıcının önceden profili var mı?
+    const {data:existingProfile,error:profileCheckError}=await db
+      .from("profiles")
+      .select("id")
+      .eq("id",verifiedUser.id)
+      .maybeSingle();
+
+    if(profileCheckError)throw profileCheckError;
+
+    if(existingProfile){
+      currentProfile=existingProfile;
+      await loadProfile();
+      return;
+    }
+
+    // Firma katılım RPC çağrısı
+    const {data,error}=await db.rpc("join_company",{
       p_join_code:code,
-      p_role:meta.role,
+      p_role:role,
       p_route_id:routeId,
-      p_full_name:meta.full_name || currentUser.email,
-      p_phone:meta.phone || null,
+      p_full_name:meta.full_name||verifiedUser.email,
+      p_phone:meta.phone||null,
       p_morning_enabled:true,
       p_evening_enabled:true
     });
 
-    if(error) throw error;
+    if(error){
+      throw new Error(
+        "Katılım RPC hatası: "+error.message+
+        "\nKod: "+(error.code||"Belirtilmedi")
+      );
+    }
 
-    showMsg("setupMsg","Katılım tamamlandı. Profil yükleniyor...");
-    await loadProfile();
+    // Profilin gerçekten oluştuğunu kontrol et
+    const {data:profile,error:readError}=await db
+      .from("profiles")
+      .select("*")
+      .eq("id",verifiedUser.id)
+      .maybeSingle();
+
+    if(readError)throw readError;
+    if(!profile){
+      throw new Error("Katılım işlemi döndü ancak profil kaydı bulunamadı.");
+    }
+
+    currentProfile=profile;
+    showMsg("setupMsg","Firmaya katılım tamamlandı.");
+    await showPanel();
 
   }catch(error){
-    showMsg("setupMsg","Katılım başarısız: "+error.message);
+    showMsg("setupMsg","Katılım başarısız: "+(error.message||String(error)));
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Firmaya Katıl";
   }
 }
 
 async function showPanel(){
   showOnly("panel");
-
   hide("companyPanel");
   hide("memberPanel");
 
   const p=currentProfile;
-
-  document.getElementById("welcome").textContent=
-    "Merhaba, "+(p.full_name||"Kullanıcı");
-
-  document.getElementById("profileInfo").textContent=
-    "Hesap türü: "+roleName(p.role);
+  document.getElementById("welcome").textContent="Merhaba, "+(p.full_name||"Kullanıcı");
+  document.getElementById("profileInfo").textContent="Hesap türü: "+roleName(p.role);
 
   if(p.role==="company"){
     show("companyPanel");
     await loadCompany();
   }else{
     show("memberPanel");
-
-    const preferenceCard=document.getElementById("ridePreferenceCard");
-
     if(p.role==="passenger"){
       show("ridePreferenceCard");
     }else{
       hide("ridePreferenceCard");
     }
-
     await loadMember();
   }
 }
@@ -450,8 +494,7 @@ async function loadCompany(){
     .maybeSingle();
 
   if(error){
-    document.getElementById("companyInfo").textContent=
-      "Firma bilgisi okunamadı: "+error.message;
+    document.getElementById("companyInfo").textContent="Firma bilgisi okunamadı: "+error.message;
   }else if(company){
     document.getElementById("companyInfo").textContent=
       "Firma: "+(company.name||"")+
@@ -485,7 +528,6 @@ async function loadCompany(){
 
 async function addRoute(){
   hide("routeMsg");
-
   const name=val("routeName");
 
   if(!name){
@@ -503,16 +545,13 @@ async function addRoute(){
       planned_km:val("plannedKm")?Number(val("plannedKm")):null
     });
 
-    if(error) throw error;
+    if(error)throw error;
 
     showMsg("routeMsg","Güzergâh eklendi.");
-
     ["routeName","startPoint","endPoint","plannedKm"].forEach(id=>{
       document.getElementById(id).value="";
     });
-
     await loadCompany();
-
   }catch(error){
     showMsg("routeMsg","Güzergâh eklenemedi: "+error.message);
   }
@@ -520,10 +559,7 @@ async function addRoute(){
 
 async function loadMember(){
   const p=currentProfile;
-
-  let info=
-    "Ad Soyad: "+(p.full_name||"")+
-    " | Rol: "+roleName(p.role);
+  let info="Ad Soyad: "+(p.full_name||"")+" | Rol: "+roleName(p.role);
 
   if(p.role==="driver"){
     info+=" | Şoför hesabı";
@@ -532,19 +568,15 @@ async function loadMember(){
   if(p.role==="passenger"){
     info+=" | Sabah: "+(p.morning_enabled?"Evet":"Hayır")+
           " | Akşam: "+(p.evening_enabled?"Evet":"Hayır");
-
-    document.getElementById("morning").checked=
-      !!p.morning_enabled;
-
-    document.getElementById("evening").checked=
-      !!p.evening_enabled;
+    document.getElementById("morning").checked=!!p.morning_enabled;
+    document.getElementById("evening").checked=!!p.evening_enabled;
   }
 
   document.getElementById("memberInfo").textContent=info;
 }
 
 async function saveRideStatus(){
-  if(!currentProfile || currentProfile.role!=="passenger"){
+  if(!currentProfile||currentProfile.role!=="passenger"){
     showMsg("rideMsg","Bu işlem yalnızca yolcu hesapları içindir.");
     return;
   }
@@ -554,41 +586,33 @@ async function saveRideStatus(){
       p_morning:document.getElementById("morning").checked,
       p_evening:document.getElementById("evening").checked
     });
-
-    if(error) throw error;
+    if(error)throw error;
 
     showMsg("rideMsg","Servis tercihleriniz kaydedildi.");
     await loadProfile();
-
   }catch(error){
     showMsg("rideMsg","Tercihler kaydedilemedi: "+error.message);
   }
 }
 
 async function logout(){
-  if(db){
-    await db.auth.signOut();
-  }
-
+  if(db)await db.auth.signOut();
   currentUser=null;
   currentProfile=null;
-
   showOnly("auth");
 }
 
 async function start(){
-  if(!initSupabase()) return;
+  if(!initSupabase())return;
 
   try{
     const {data,error}=await db.auth.getSession();
-
-    if(error) throw error;
+    if(error)throw error;
 
     if(data.session){
       currentUser=data.session.user;
       await loadProfile();
     }
-
   }catch(error){
     showMsg("authMsg","Başlatma hatası: "+error.message);
   }
