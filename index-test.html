@@ -75,6 +75,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
   <button onclick="addRoute()">Güzergâhı Kaydet</button><div id="routeMsg" class="msg hidden"></div>
  </div>
  <div class="card"><h2>Güzergâhlarım</h2><div id="companyRoutes">Yükleniyor...</div></div>
+ <div class="card"><h2>Yolcu Listesi</h2>
+  <label>Güzergâha göre filtrele</label><select id="companyPassengerRoute" onchange="loadCompanyPassengers()"><option value="">Tüm güzergâhlar</option></select>
+  <button class="secondary" onclick="loadCompanyPassengers()">Listeyi Yenile</button><div id="companyPassengerList" class="muted">Yolcular yükleniyor...</div>
+ </div>
  <div class="card">
   <h2>Durak Yönetimi</h2><label>Güzergâh seç</label><select id="stopRoute" onchange="loadCompanyStops()"><option value="">Güzergâh seçin</option></select>
   <div class="row"><div><label>Durak adı</label><input id="newStopName" placeholder="Durak adı"></div><div><label>Varış saati</label><input id="newStopTime" type="time"></div></div>
@@ -94,7 +98,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
  <div class="card"><h2>Sefer ve GPS Takibi</h2><div id="driverRouteInfo"></div>
  <button id="startGPSBtn" class="success" onclick="startDriverTracking()">GPS Takibini Başlat</button><button class="danger" onclick="stopDriverTracking()">GPS Takibini Durdur</button>
  <div id="driverGPSStatus" class="msg hidden"></div><div id="driverStopAlerts" class="msg hidden"></div>
- <h3>Duraklar ve saatler</h3><div id="driverStops"></div></div>
+ <h3>Duraklar ve saatler</h3><div id="driverStops"></div>
+ <h3>Bu Güzergâhtaki Yolcular</h3><button class="secondary" onclick="loadDriverPassengers()">Yolcu Listesini Yenile</button><div id="driverPassengerList" class="muted">Yolcular yükleniyor...</div></div>
 </section>
 
 <section id="passengerPanel" class="hidden">
@@ -187,9 +192,9 @@ async function findRoutes(){
 }
 async function showPanel(){
  if(currentProfile.role==="company"){
-  showOnly("companyPanel");el("companyWelcome").textContent=currentProfile.full_name||currentUser.email;await loadCompanyRoutes();
+  showOnly("companyPanel");el("companyWelcome").textContent=currentProfile.full_name||currentUser.email;await loadCompanyRoutes();await loadCompanyPassengers();
  }else if(currentProfile.role==="driver"){
-  showOnly("driverPanel");el("driverWelcome").textContent=currentProfile.full_name||currentUser.email;await loadDriverStops();
+  showOnly("driverPanel");el("driverWelcome").textContent=currentProfile.full_name||currentUser.email;await loadDriverStops();await loadDriverPassengers();
  }else{
   showOnly("passengerPanel");el("passengerWelcome").textContent=currentProfile.full_name||currentUser.email;
   el("passMorning").checked=!!currentProfile.morning_enabled;el("passEvening").checked=!!currentProfile.evening_enabled;
@@ -199,13 +204,49 @@ async function loadCompanyRoutes(){
  try{
   const {data,error}=await db.from("routes").select("id,name,route_type,start_point,end_point,planned_km,company_id").eq("company_id",currentProfile.company_id).order("name");
   if(error)throw error;companyRoutes=data||[];
-  el("companyRoutes").innerHTML="";["stopRoute","companyTrackRoute"].forEach(id=>el(id).innerHTML='<option value="">Güzergâh seçin</option>');
+  el("companyRoutes").innerHTML="";["stopRoute","companyTrackRoute"].forEach(id=>el(id).innerHTML='<option value="">Güzergâh seçin</option>');el("companyPassengerRoute").innerHTML='<option value="">Tüm güzergâhlar</option>';
   companyRoutes.forEach(r=>{
    const item=document.createElement("div");item.className="item";item.innerHTML="<strong></strong><div class='muted'></div>";item.querySelector("strong").textContent=r.name;item.querySelector(".muted").textContent=[r.route_type,r.start_point&&("Başlangıç: "+r.start_point),r.end_point&&("Bitiş: "+r.end_point),r.planned_km&&("Planlanan: "+r.planned_km+" km")].filter(Boolean).join(" · ");el("companyRoutes").appendChild(item);
-   ["stopRoute","companyTrackRoute"].forEach(id=>{const o=document.createElement("option");o.value=r.id;o.textContent=r.name;el(id).appendChild(o)});
+   ["stopRoute","companyTrackRoute","companyPassengerRoute"].forEach(id=>{const o=document.createElement("option");o.value=r.id;o.textContent=r.name;el(id).appendChild(o)});
   });
   if(!companyRoutes.length)el("companyRoutes").textContent="Henüz güzergâh oluşturulmadı.";
  }catch(e){el("companyRoutes").textContent="Güzergâhlar yüklenemedi: "+e.message}
+}
+async function loadCompanyPassengers(){
+ const box=el("companyPassengerList");if(!box)return;box.textContent="Yolcular yükleniyor...";
+ try{
+  let q=db.from("profiles").select("id,full_name,passenger_kind,morning_enabled,evening_enabled,stop_id,route_id").eq("company_id",currentProfile.company_id).eq("role","passenger").order("full_name",{ascending:true});
+  const selectedRoute=val("companyPassengerRoute");if(selectedRoute)q=q.eq("route_id",selectedRoute);
+  const {data,error}=await q;if(error)throw error;
+  await renderPassengerCards(box,data||[]);
+ }catch(e){box.textContent="Yolcu listesi alınamadı: "+e.message}
+}
+async function loadDriverPassengers(){
+ const box=el("driverPassengerList");if(!box)return;box.textContent="Yolcular yükleniyor...";
+ try{
+  const routeId=currentProfile?.route_id;if(!routeId){box.textContent="Şoför hesabınıza güzergâh atanmamış.";return}
+  const {data,error}=await db.from("profiles").select("id,full_name,passenger_kind,morning_enabled,evening_enabled,stop_id,route_id").eq("route_id",routeId).eq("role","passenger").order("full_name",{ascending:true});
+  if(error)throw error;await renderPassengerCards(box,data||[]);
+ }catch(e){box.textContent="Yolcu listesi alınamadı: "+e.message}
+}
+async function renderPassengerCards(box,passengers){
+ box.innerHTML="";if(!passengers.length){box.textContent="Bu güzergâhta kayıtlı yolcu bulunamadı.";return}
+ const routeIds=[...new Set(passengers.map(p=>p.route_id).filter(Boolean))];let stops=[];
+ if(routeIds.length){const {data,error}=await db.from("stops").select("id,name,route_id,stop_order").in("route_id",routeIds);if(error)throw error;stops=data||[]}
+ const stopMap=new Map(stops.map(s=>[s.id,s.name]));
+ passengers.forEach((p,i)=>{
+  const card=document.createElement("div");card.className="item";
+  const name=document.createElement("strong");name.textContent=(i+1)+". "+(p.full_name||"İsimsiz yolcu");card.appendChild(name);
+  const details=document.createElement("div");details.className="muted";
+  const kind=p.passenger_kind?"Tür: "+p.passenger_kind:"";
+  const stop=p.stop_id?("Durak: "+(stopMap.get(p.stop_id)||"Durak bilgisi bulunamadı")):"Durak atanmamış";
+  details.textContent=[kind,stop].filter(Boolean).join(" · ");card.appendChild(details);
+  const badges=document.createElement("div");
+  const morning=document.createElement("span");morning.className="pill";morning.textContent="Sabah: "+(p.morning_enabled?"Kullanıyor":"Kullanmıyor");
+  const evening=document.createElement("span");evening.className="pill";evening.textContent="Akşam: "+(p.evening_enabled?"Kullanıyor":"Kullanmıyor");
+  badges.append(morning,evening);card.appendChild(badges);box.appendChild(card);
+ });
+ const total=document.createElement("div");total.className="muted";total.textContent="Toplam yolcu: "+passengers.length;box.prepend(total);
 }
 async function addRoute(){
  const name=val("newRouteName");if(!name){showMsg("routeMsg","Güzergâh adı gerekli.",true);return}
