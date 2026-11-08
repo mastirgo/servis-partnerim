@@ -268,6 +268,7 @@ let driverGpsWatchId=null,driverTrackingTimer=null;
 let driverStops=[],driverFiveMinuteAlerts=new Set(),driverReachedStops=new Set();
 let activeWaitStop=null,activeWaitUntil=0;
 let sessionDistanceMeters=0,lastDistancePoint=null,lastGpsSavedAt=0,gpsSaveBusy=false;
+let gpsSignalState="idle",gpsFirstFixNotified=false;
 let liveMaps={},liveMarkers={},liveIntervals={},liveLastPositions={};
 
 function showMsg(id,text){const el=document.getElementById(id);if(!el)return;el.textContent=text;el.classList.remove("hidden")}
@@ -739,6 +740,16 @@ function showDriverAlert(message,sendNotification=true){
   }
   if(sendNotification&&navigator.vibrate)navigator.vibrate([250,120,250]);
 }
+function setGpsSignalState(state,message,notify=false){
+  if(gpsSignalState===state)return;
+  const previous=gpsSignalState;gpsSignalState=state;
+  if(message){
+    const status=document.getElementById("driverGPSStatus");
+    if(status)status.textContent=message;
+    if(notify)showDriverAlert(message,true);
+  }
+  return previous;
+}
 function updateWaitCountdown(){
   if(!activeWaitStop||!activeWaitUntil)return;
   const remaining=activeWaitUntil-Date.now();
@@ -817,6 +828,7 @@ async function startDriverTracking(){
       try{await Notification.requestPermission()}catch(e){}
     }
     sessionDistanceMeters=0;lastDistancePoint=null;lastGpsSavedAt=0;gpsSaveBusy=false;
+    gpsSignalState="waiting";gpsFirstFixNotified=false;
     driverFiveMinuteAlerts=new Set();driverReachedStops=new Set();activeWaitStop=null;activeWaitUntil=0;
     document.getElementById("driverSessionKm").textContent=formatKm(0);
     document.getElementById("driverLastSaved").textContent="İlk GPS kaydı bekleniyor";
@@ -825,9 +837,13 @@ async function startDriverTracking(){
     driverGpsWatchId=navigator.geolocation.watchPosition(async position=>{
       const c=position.coords;
       if(c.accuracy>100){
-        const status=document.getElementById("driverGPSStatus");
-        if(status)status.textContent="GPS doğruluğu düşük ("+Math.round(c.accuracy)+" m). Daha açık bir alanda konum bekleniyor.";
+        setGpsSignalState("weak","GPS sinyali zayıf (±"+Math.round(c.accuracy)+" m). Daha açık bir alana geçin.",gpsSignalState==="active");
         return;
+      }
+      if(gpsSignalState!=="active"){
+        const recovered=gpsSignalState==="weak"||gpsSignalState==="lost";
+        setGpsSignalState("active",recovered?"GPS SİNYALİ GERİ GELDİ — Konum takibi yeniden aktif.":"KONUM ÇALIŞIYOR — GPS bağlantısı kuruldu, konumunuz takip ediliyor.",true);
+        gpsFirstFixNotified=true;
       }
       const point={latitude:c.latitude,longitude:c.longitude,timestamp:position.timestamp||Date.now(),accuracy:c.accuracy};
       if(lastDistancePoint){
@@ -845,8 +861,13 @@ async function startDriverTracking(){
       if(status&&status.textContent.indexOf("kaydedilemedi")===-1)status.textContent="GPS aktif. Son konum: "+point.latitude.toFixed(6)+", "+point.longitude.toFixed(6)+" (±"+Math.round(c.accuracy)+" m).";
     },error=>{
       const message="GPS hatası: "+geoErrorText(error);
-      if(error.code===1){stopDriverTracking();showMsg("driverGPSStatus",message)}
-      else showMsg("driverGPSStatus",message);
+      if(error.code===1){
+        setGpsSignalState("lost","KONUM İZNİ YOK — "+geoErrorText(error),true);
+        stopDriverTracking();showMsg("driverGPSStatus",message);
+      }else{
+        setGpsSignalState("lost","GPS SİNYALİ KESİLDİ — "+geoErrorText(error)+". Sinyal geldiğinde takip otomatik devam eder.",gpsSignalState!=="lost");
+        showMsg("driverGPSStatus",message);
+      }
     },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
     driverTrackingTimer=setInterval(()=>{processDriverTimeAlerts()},1000);
     stopBtn.disabled=false;startBtn.textContent="GPS Takibini Başlat";
@@ -859,6 +880,7 @@ async function startDriverTracking(){
 function stopDriverTracking(){
   if(driverGpsWatchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(driverGpsWatchId);
   driverGpsWatchId=null;
+  gpsSignalState="idle";
   if(driverTrackingTimer){clearInterval(driverTrackingTimer);driverTrackingTimer=null}
   const startBtn=document.getElementById("startGPSBtn"),stopBtn=document.getElementById("stopGPSBtn");
   if(startBtn){startBtn.disabled=false;startBtn.textContent="GPS Takibini Başlat"}
