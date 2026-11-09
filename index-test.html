@@ -63,7 +63,7 @@ label{display:block;margin:12px 0}
       <section id="auth">
         <div class="card">
           <h2>Giriş Yap</h2>
-          <input id="email" type="email" placeholder="E-posta adresi">
+         <input id="email" type="text" placeholder="Kullanıcı adınız">
           <input id="password" type="password" placeholder="Şifre">
           <button id="loginBtn" onclick="login()">Giriş Yap</button>
           <div id="authMsg" class="msg hidden">
@@ -355,15 +355,61 @@ async function signup(){
   finally{btn.disabled=false;btn.textContent="Hesap Oluştur"}
 }
 async function login(){
-  hide("authMsg");const btn=document.getElementById("loginBtn"),email=val("email"),password=val("password");
-  if(!email||!password){showMsg("authMsg","E-posta ve şifre girin.");return}
-  btn.disabled=true;btn.textContent="Giriş yapılıyor...";
+  hide("authMsg");
+
+  const btn = document.getElementById("loginBtn");
+  const username = val("email").trim().toLowerCase();
+  const password = val("password");
+
+  if(!username || !password){
+    showMsg("authMsg","Kullanıcı adı ve şifre girin.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Giriş yapılıyor...";
+
   try{
     await db.auth.signOut({scope:"local"});
-    const {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;
-    if(!data.user)throw new Error("Kullanıcı bilgisi alınamadı.");currentUser=data.user;await loadProfile();
-  }catch(error){showOnly("auth");showMsg("authMsg","Giriş hatası: "+error.message)}
-  finally{btn.disabled=false;btn.textContent="Giriş Yap"}
+
+    const {data,error} = await db.functions.invoke(
+      "username-login",
+      {
+        body:{
+          username,
+          password
+        }
+      }
+    );
+
+    if(error) throw error;
+
+    if(!data?.access_token || !data?.refresh_token){
+      throw new Error("Giriş bilgileri alınamadı.");
+    }
+
+    const {data:sessionData,error:sessionError} =
+      await db.auth.setSession({
+        access_token:data.access_token,
+        refresh_token:data.refresh_token
+      });
+
+    if(sessionError) throw sessionError;
+
+    if(!sessionData.user){
+      throw new Error("Kullanıcı bilgisi alınamadı.");
+    }
+
+    currentUser = sessionData.user;
+    await loadProfile();
+
+  }catch(error){
+    showOnly("auth");
+    showMsg("authMsg","Giriş hatası: "+error.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Giriş Yap";
+  }
 }
 async function loadProfile(){
   if(!currentUser){showOnly("auth");return}
