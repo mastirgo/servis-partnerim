@@ -63,23 +63,27 @@ label{display:block;margin:12px 0}
       <section id="auth">
         <div class="card">
           <h2>Giriş Yap</h2>
-         <input id="email" type="text" placeholder="Kullanıcı adınız">
-          <input id="password" type="password" placeholder="Şifre">
+          <input id="username" type="text" autocomplete="username" placeholder="Kullanıcı adı">
+          <input id="password" type="password" autocomplete="current-password" placeholder="Şifre">
           <button id="loginBtn" onclick="login()">Giriş Yap</button>
           <div id="authMsg" class="msg hidden">
           </div>
         </div>
         <div class="card">
-          <h2>Firma Kaydı Oluştur</h2>
-<input id="regCompanyName" placeholder="Firma adı">
-<input id="regName" placeholder="Yetkili adı soyadı">
-<input id="regPhone" placeholder="Telefon (isteğe bağlı)">
-<input id="regUsername" type="text" placeholder="Kullanıcı adı">
-<input id="regPassword" type="password" placeholder="Şifre (en az 6 karakter)">
-<button id="signupBtn" onclick="signup()">Firma Kaydı Oluştur</button>
-<div id="regMsg" class="msg hidden"></div>
-</div>
-</section>
+          <h2>Firma Kaydı</h2>
+          <p>
+            <small>Yeni firma hesabınızı oluşturun. Şoför ve yolcu hesapları firma panelinden eklenir.</small>
+          </p>
+          <input id="regCompanyName" placeholder="Firma adı">
+          <input id="regName" placeholder="Yetkili adı soyadı">
+          <input id="regPhone" type="tel" placeholder="Telefon">
+          <input id="regUsername" type="text" autocomplete="username" placeholder="Kullanıcı adı">
+          <input id="regPassword" type="password" autocomplete="new-password" placeholder="Şifre (en az 6 karakter)">
+          <button id="signupBtn" onclick="signup()">Firma Kaydı Oluştur</button>
+          <div id="regMsg" class="msg hidden">
+          </div>
+        </div>
+      </section>
       <section id="onboarding" class="hidden">
         <div class="card">
           <div class="row">
@@ -333,113 +337,42 @@ function initSupabase(){
 async function logout(){
   stopDriverTracking();stopAllLiveTracking();
   try{if(db)await db.auth.signOut({scope:"local"})}catch(e){console.error("Çıkış hatası:",e)}
-  currentUser=null;currentProfile=null;showOnly("auth");showMsg("authMsg","Oturum kapatıldı. Lütfen e-posta ve şifrenizle yeniden giriş yapın.");document.getElementById("password").value="";
+  currentUser=null;currentProfile=null;showOnly("auth");showMsg("authMsg","Oturum kapatıldı. Lütfen kullanıcı adınız ve şifrenizle yeniden giriş yapın.");document.getElementById("password").value="";
 }
 async function signup(){
   hide("regMsg");
-
-  const btn = document.getElementById("signupBtn");
-  const company_name = val("regCompanyName").trim();
-  const full_name = val("regName").trim();
-  const phone = val("regPhone").trim();
-  const username = val("regUsername").trim().toLowerCase();
-  const password = val("regPassword");
-
-  if(!company_name || !full_name || !username || !password){
-    showMsg("regMsg","Firma adı, yetkili adı, kullanıcı adı ve şifre zorunludur.");
-    return;
-  }
-
-  if(password.length < 6){
-    showMsg("regMsg","Şifre en az 6 karakter olmalıdır.");
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = "Firma oluşturuluyor...";
-
+  const btn=document.getElementById("signupBtn");
+  const company_name=val("regCompanyName"),full_name=val("regName"),phone=val("regPhone"),username=val("regUsername").toLowerCase(),password=val("regPassword");
+  if(!company_name||!full_name||!username||!password){showMsg("regMsg","Firma adı, yetkili adı, kullanıcı adı ve şifre zorunludur.");return}
+  if(!/^[a-z0-9._-]{3,30}$/.test(username)){showMsg("regMsg","Kullanıcı adı 3-30 karakter olmalı; küçük harf, rakam, nokta, tire veya alt çizgi içerebilir.");return}
+  if(password.length<6){showMsg("regMsg","Şifre en az 6 karakter olmalıdır.");return}
+  btn.disabled=true;btn.textContent="Firma kaydı oluşturuluyor...";
   try{
-    const {data,error} = await db.functions.invoke(
-      "company-register",
-      {
-        body:{
-          company_name,
-          full_name,
-          phone,
-          username,
-          password
-        }
-      }
-    );
-
-    if(error) throw error;
-    if(!data?.success) throw new Error(data?.error || "Firma kaydı oluşturulamadı.");
-
-    showMsg("regMsg","Firma kaydı oluşturuldu. Kullanıcı adınız ve şifrenizle giriş yapabilirsiniz.");
-
-  }catch(error){
-    showMsg("regMsg","Kayıt hatası: "+(error.message || "İşlem başarısız."));
-  }finally{
-    btn.disabled = false;
-    btn.textContent = "Firma Kaydı Oluştur";
-  }
+    const {data,error}=await db.functions.invoke("company-register",{body:{company_name,full_name,phone,username,password}});
+    if(error){let detail=error.message||"Edge Function çağrısı başarısız.";try{if(error.context){const body=await error.context.json();if(body?.error)detail=body.error}}catch(e){}throw new Error(detail)}
+    if(data?.error||data?.success===false)throw new Error(data.error||"Firma kaydı tamamlanamadı.");
+    document.getElementById("username").value=username;
+    showMsg("regMsg","Firma kaydınız oluşturuldu. Şimdi giriş bölümünden kullanıcı adınız ve şifrenizle giriş yapabilirsiniz.");
+  }catch(error){showMsg("regMsg","Kayıt hatası: "+error.message)}
+  finally{btn.disabled=false;btn.textContent="Firma Kaydı Oluştur"}
 }
 async function login(){
   hide("authMsg");
-
-  const btn = document.getElementById("loginBtn");
-  const username = val("email").trim().toLowerCase();
-  const password = val("password");
-
-  if(!username || !password){
-    showMsg("authMsg","Kullanıcı adı ve şifre girin.");
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = "Giriş yapılıyor...";
-
+  const btn=document.getElementById("loginBtn"),username=val("username").toLowerCase(),password=val("password");
+  if(!username||!password){showMsg("authMsg","Kullanıcı adı ve şifre girin.");return}
+  btn.disabled=true;btn.textContent="Giriş yapılıyor...";
   try{
     await db.auth.signOut({scope:"local"});
-
-    const {data,error} = await db.functions.invoke(
-      "username-login",
-      {
-        body:{
-          username,
-          password
-        }
-      }
-    );
-
-    if(error) throw error;
-
-    if(!data?.access_token || !data?.refresh_token){
-      throw new Error("Giriş bilgileri alınamadı.");
-    }
-
-    const {data:sessionData,error:sessionError} =
-      await db.auth.setSession({
-        access_token:data.access_token,
-        refresh_token:data.refresh_token
-      });
-
-    if(sessionError) throw sessionError;
-
-    if(!sessionData.user){
-      throw new Error("Kullanıcı bilgisi alınamadı.");
-    }
-
-    currentUser = sessionData.user;
-    await loadProfile();
-
-  }catch(error){
-    showOnly("auth");
-    showMsg("authMsg","Giriş hatası: "+error.message);
-  }finally{
-    btn.disabled = false;
-    btn.textContent = "Giriş Yap";
-  }
+    const {data,error}=await db.functions.invoke("username-login",{body:{username,password}});
+    if(error){let detail=error.message||"Giriş servisine ulaşılamadı.";try{if(error.context){const body=await error.context.json();if(body?.error)detail=body.error}}catch(e){}throw new Error(detail)}
+    if(data?.error||data?.success===false)throw new Error(data.error||"Kullanıcı adı veya şifre hatalı.");
+    if(!data?.access_token||!data?.refresh_token)throw new Error("Giriş servisi oturum anahtarlarını döndürmedi.");
+    const {data:sessionData,error:sessionError}=await db.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
+    if(sessionError)throw sessionError;
+    if(!sessionData?.user)throw new Error("Kullanıcı oturumu oluşturulamadı.");
+    currentUser=sessionData.user;await loadProfile();
+  }catch(error){showOnly("auth");showMsg("authMsg","Giriş hatası: "+error.message)}
+  finally{btn.disabled=false;btn.textContent="Giriş Yap"}
 }
 async function loadProfile(){
   if(!currentUser){showOnly("auth");return}
