@@ -336,17 +336,53 @@ async function logout(){
   currentUser=null;currentProfile=null;showOnly("auth");showMsg("authMsg","Oturum kapatıldı. Lütfen e-posta ve şifrenizle yeniden giriş yapın.");document.getElementById("password").value="";
 }
 async function signup(){
-  hide("regMsg");const btn=document.getElementById("signupBtn");
-  const name=val("regName"),phone=val("regPhone"),email=val("regEmail"),password=val("regPassword"),role=val("regRole");
-  if(!name||!email||!password){showMsg("regMsg","Ad, e-posta ve şifre alanlarını doldurun.");return}
-  if(password.length<6){showMsg("regMsg","Şifre en az 6 karakter olmalıdır.");return}
-  btn.disabled=true;btn.textContent="Hesap oluşturuluyor...";
+  hide("regMsg");
+
+  const btn = document.getElementById("signupBtn");
+  const company_name = val("regCompanyName").trim();
+  const full_name = val("regName").trim();
+  const phone = val("regPhone").trim();
+  const username = val("regUsername").trim().toLowerCase();
+  const password = val("regPassword");
+
+  if(!company_name || !full_name || !username || !password){
+    showMsg("regMsg","Firma adı, yetkili adı, kullanıcı adı ve şifre zorunludur.");
+    return;
+  }
+
+  if(password.length < 6){
+    showMsg("regMsg","Şifre en az 6 karakter olmalıdır.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Firma oluşturuluyor...";
+
   try{
-    const {error}=await db.auth.signUp({email,password,options:{data:{full_name:name,phone:phone,role:role},emailRedirectTo:"https://mastirgo.github.io/servis-partnerim/index-test.html"}});
-    if(error)throw error;
-    showMsg("regMsg","Hesap oluşturma isteği gönderildi.\nE-posta doğrulaması isteniyorsa gelen kutunuzu kontrol edin.\nDoğrulama tamamlandıktan sonra giriş yapın.");
-  }catch(error){showMsg("regMsg","Kayıt hatası: "+error.message)}
-  finally{btn.disabled=false;btn.textContent="Hesap Oluştur"}
+    const {data,error} = await db.functions.invoke(
+      "company-register",
+      {
+        body:{
+          company_name,
+          full_name,
+          phone,
+          username,
+          password
+        }
+      }
+    );
+
+    if(error) throw error;
+    if(!data?.success) throw new Error(data?.error || "Firma kaydı oluşturulamadı.");
+
+    showMsg("regMsg","Firma kaydı oluşturuldu. Kullanıcı adınız ve şifrenizle giriş yapabilirsiniz.");
+
+  }catch(error){
+    showMsg("regMsg","Kayıt hatası: "+(error.message || "İşlem başarısız."));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Firma Kaydı Oluştur";
+  }
 }
 async function login(){
   hide("authMsg");
