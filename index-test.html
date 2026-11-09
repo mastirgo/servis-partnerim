@@ -70,20 +70,16 @@ label{display:block;margin:12px 0}
           </div>
         </div>
         <div class="card">
-          <h2>Yeni Hesap Oluştur</h2>
-          <input id="regName" placeholder="Ad Soyad / Firma adı">
-          <input id="regPhone" placeholder="Telefon">
-          <input id="regEmail" type="email" placeholder="E-posta">
-          <input id="regPassword" type="password" placeholder="Şifre (en az 6 karakter)">
-          <select id="regRole">
-  <option value="company">Firma</option>
-</select>
-          <button id="signupBtn" onclick="signup()">Hesap Oluştur</button>
-          <div id="regMsg" class="msg hidden">
-          </div>
-          <small>Hesap oluşturduktan sonra e-posta doğrulaması istenebilir.</small>
-        </div>
-      </section>
+          <h2>Firma Kaydı Oluştur</h2>
+<input id="regCompanyName" placeholder="Firma adı">
+<input id="regName" placeholder="Yetkili adı soyadı">
+<input id="regPhone" placeholder="Telefon (isteğe bağlı)">
+<input id="regUsername" type="text" placeholder="Kullanıcı adı">
+<input id="regPassword" type="password" placeholder="Şifre (en az 6 karakter)">
+<button id="signupBtn" onclick="signup()">Firma Kaydı Oluştur</button>
+<div id="regMsg" class="msg hidden"></div>
+</div>
+</section>
       <section id="onboarding" class="hidden">
         <div class="card">
           <div class="row">
