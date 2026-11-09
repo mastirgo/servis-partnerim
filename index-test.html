@@ -63,7 +63,7 @@ label{display:block;margin:12px 0}
       <section id="auth">
         <div class="card">
           <h2>Giriş Yap</h2>
-          <input id="username" type="text" autocomplete="username" placeholder="Kullanıcı adı">
+          <input id="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" pattern="[a-z0-9._-]{3,30}" title="3-30 karakter: küçük harf, rakam, nokta, tire veya alt çizgi" placeholder="Kullanıcı adı">
           <input id="password" type="password" autocomplete="current-password" placeholder="Şifre">
           <button id="loginBtn" onclick="login()">Giriş Yap</button>
           <div id="authMsg" class="msg hidden">
@@ -77,7 +77,7 @@ label{display:block;margin:12px 0}
           <input id="regCompanyName" placeholder="Firma adı">
           <input id="regName" placeholder="Yetkili adı soyadı">
           <input id="regPhone" type="tel" placeholder="Telefon">
-          <input id="regUsername" type="text" autocomplete="username" placeholder="Kullanıcı adı">
+          <input id="regUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="30" pattern="[a-z0-9._-]{3,30}" title="3-30 karakter: küçük harf, rakam, nokta, tire veya alt çizgi" placeholder="Kullanıcı adı">
           <input id="regPassword" type="password" autocomplete="new-password" placeholder="Şifre (en az 6 karakter)">
           <button id="signupBtn" onclick="signup()">Firma Kaydı Oluştur</button>
           <div id="regMsg" class="msg hidden">
@@ -360,6 +360,7 @@ async function login(){
   hide("authMsg");
   const btn=document.getElementById("loginBtn"),username=val("username").toLowerCase(),password=val("password");
   if(!username||!password){showMsg("authMsg","Kullanıcı adı ve şifre girin.");return}
+  if(!/^[a-z0-9._-]{3,30}$/.test(username)){showMsg("authMsg","Kullanıcı adı 3-30 karakter olmalı; yalnızca küçük harf, rakam, nokta, tire veya alt çizgi kullanın.");return}
   btn.disabled=true;btn.textContent="Giriş yapılıyor...";
   try{
     await db.auth.signOut({scope:"local"});
