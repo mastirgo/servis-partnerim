@@ -1,4 +1,4 @@
-7<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
@@ -34,10 +34,8 @@ label{display:block;margin:12px 0}
 .passenger-card{padding:14px;border:1px solid #dce3eb;border-radius:10px;margin:10px 0;background:#fff}
 .passenger-name{font-weight:bold;color:var(--navy);font-size:16px;margin-bottom:9px}
 .passenger-detail{font-size:14px;margin:6px 0}
-.status-yes{display:inline-block;color:#087b54;font-weight:800;background:#e8f7ef;padding:5px 9px;border-radius:7px}
-.status-no{display:inline-block;color:#b42318;font-weight:800;background:#fff0ef;padding:5px 9px;border-radius:7px}
-.stop-order-actions{display:flex;gap:8px;margin:6px 0}
-.stop-order-actions button{flex:1;margin:3px 0;padding:9px}
+.status-yes{color:#087b54;font-weight:bold}
+.status-no{color:#b42318;font-weight:bold}
 .live-map{height:280px;width:100%;border-radius:10px;border:1px solid #dce3eb;overflow:hidden;margin-top:10px}
 .gps-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .gps-actions button{margin:4px 0}
@@ -370,42 +368,6 @@ async function loadStopRouteOptions(routes){
   if(previous&&(routes||[]).some(route=>route.id===previous))select.value=previous;else if(routes&&routes.length)select.value=routes[0].id;
   await loadCompanyStops();
 }
-async function moveCompanyStop(routeId,stopId,direction){
-  try{
-    const {data:stops,error}=await db.from("stops").select("id,stop_order").eq("route_id",routeId).order("stop_order",{ascending:true});
-    if(error)throw error;
-    const index=(stops||[]).findIndex(s=>s.id===stopId);
-    if(index<0)throw new Error("Durak listede bulunamadı.");
-    const otherIndex=index+direction;
-    if(otherIndex<0||otherIndex>=stops.length)return;
-    const current=stops[index],other=stops[otherIndex];
-    const maxOrder=Math.max(0,...stops.map(s=>Number(s.stop_order)||0));
-    const temporaryOrder=maxOrder+1;
-    let currentMoved=false,otherMoved=false;
-    try{
-      let result=await db.from("stops").update({stop_order:temporaryOrder}).eq("id",current.id).eq("route_id",routeId);
-      if(result.error)throw result.error;currentMoved=true;
-      result=await db.from("stops").update({stop_order:current.stop_order}).eq("id",other.id).eq("route_id",routeId);
-      if(result.error)throw result.error;otherMoved=true;
-      result=await db.from("stops").update({stop_order:other.stop_order}).eq("id",current.id).eq("route_id",routeId);
-      if(result.error)throw result.error;
-    }catch(error){
-      // Hata halinde mümkün olan kayıtları eski sıralarına döndür.
-      try{
-        if(otherMoved){
-          await db.from("stops").update({stop_order:temporaryOrder+1}).eq("id",other.id).eq("route_id",routeId);
-          await db.from("stops").update({stop_order:current.stop_order}).eq("id",current.id).eq("route_id",routeId);
-          await db.from("stops").update({stop_order:other.stop_order}).eq("id",other.id).eq("route_id",routeId);
-        }else if(currentMoved){
-          await db.from("stops").update({stop_order:current.stop_order}).eq("id",current.id).eq("route_id",routeId);
-        }
-      }catch(rollbackError){console.error("Durak sıralaması geri alma hatası:",rollbackError)}
-      throw error;
-    }
-    await loadCompanyStops();
-    showMsg("stopMsg","Durak sırası güncellendi.");
-  }catch(error){showMsg("stopMsg","Durak sırası değiştirilemedi: "+error.message)}
-}
 async function loadCompanyStops(){
   const routeId=val("stopRoute"),list=document.getElementById("companyStopList");list.innerHTML="";
   if(!routeId){list.textContent="Önce güzergâh seçin.";return}
@@ -417,10 +379,6 @@ async function loadCompanyStops(){
     data.forEach(stop=>{
       const card=document.createElement("div");card.className="item";
       const title=document.createElement("strong");title.textContent=stop.stop_order+". Durak";card.appendChild(title);
-      const orderActions=document.createElement("div");orderActions.className="stop-order-actions";
-      const up=document.createElement("button");up.type="button";up.className="secondary";up.textContent="↑ Yukarı";up.disabled=data.indexOf(stop)===0;up.onclick=()=>moveCompanyStop(routeId,stop.id,-1);orderActions.appendChild(up);
-      const down=document.createElement("button");down.type="button";down.className="secondary";down.textContent="↓ Aşağı";down.disabled=data.indexOf(stop)===data.length-1;down.onclick=()=>moveCompanyStop(routeId,stop.id,1);orderActions.appendChild(down);
-      card.appendChild(orderActions);
       const name=document.createElement("input");name.value=stop.name||"";name.placeholder="Durak adı";card.appendChild(name);
       const time=document.createElement("input");time.type="time";time.value=stop.arrival_time?stop.arrival_time.slice(0,5):"";card.appendChild(time);
       const order=document.createElement("input");order.type="number";order.min="1";order.step="1";order.value=stop.stop_order;order.placeholder="Durak sırası";card.appendChild(order);
