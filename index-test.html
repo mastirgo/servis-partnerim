@@ -81,7 +81,7 @@ label{display:block;margin:12px 0}
 </select>
 <button id="signupBtn" onclick="signup()">Hesap Oluştur</button>
 <div id="regMsg" class="msg hidden"></div>
-<small>Hesap oluşturduktan sonra e-posta doğrulaması istenebilir.</small>
+<small>Hesap oluşturmak için e-posta adresi ve şifre gerekir. E-posta onayı olmadan kayıt yapılır.</small>
 </div>
 </section>
 <section id="onboarding" class="hidden">
@@ -242,6 +242,7 @@ let driverRouteInfo=null;
 let driverGpsWatchId=null,driverTrackingTimer=null;
 let driverStops=[],driverFiveMinuteAlerts=new Set(),driverReachedStops=new Set();
 let activeWaitStop=null,activeWaitUntil=0;
+let driverTripStarted=false,driverTripCompleted=false;
 let sessionDistanceMeters=0,lastDistancePoint=null,lastGpsSavedAt=0,gpsSaveBusy=false;
 let gpsSignalState="idle",gpsFirstFixNotified=false;
 let liveMaps={},liveMarkers={},liveIntervals={},liveLastPositions={};
@@ -274,9 +275,15 @@ async function signup(){
   if(password.length<6){showMsg("regMsg","Şifre en az 6 karakter olmalıdır.");return}
   btn.disabled=true;btn.textContent="Hesap oluşturuluyor...";
   try{
-    const {error}=await db.auth.signUp({email,password,options:{data:{full_name:name,phone:phone,role:role},emailRedirectTo:"https://mastirgo.github.io/servis-partnerim/index-test.html"}});
+    const {data,error}=await db.auth.signUp({email,password,options:{data:{full_name:name,phone:phone,role:role}}});
     if(error)throw error;
-    showMsg("regMsg","Hesap oluşturma isteği gönderildi.\nE-posta doğrulaması isteniyorsa gelen kutunuzu kontrol edin.\nDoğrulama tamamlandıktan sonra giriş yapın.");
+    if(data.session&&data.user){
+      currentUser=data.user;
+      showMsg("regMsg","Hesabınız oluşturuldu. Kurulum ekranına yönlendiriliyorsunuz.");
+      await loadProfile();
+    }else{
+      showMsg("regMsg","Kayıt isteği alındı ancak oturum açılamadı. E-posta onayının kapalı olması için Supabase > Authentication > Providers > Email bölümünde Confirm email ayarını kapatın.");
+    }
   }catch(error){showMsg("regMsg","Kayıt hatası: "+error.message)}
   finally{btn.disabled=false;btn.textContent="Hesap Oluştur"}
 }
@@ -618,7 +625,9 @@ async function loadDriverAttendance(){
   const list=document.getElementById("driverAttendanceList");hide("driverAttendanceMsg");list.innerHTML="";
   if(!currentProfile||currentProfile.role!=="driver"){showMsg("driverAttendanceMsg","Bu bölüm yalnızca şoför hesaplarına açıktır.");return}
   if(!currentProfile.route_id){showMsg("driverAttendanceMsg","Size henüz güzergâh atanmamış.");return}
-  const serviceDate=val("driverAttendanceDate")||localDateValue(),period=val("driverAttendancePeriod")||"morning";
+  const serviceDate=val("driverAttendanceDate")||localDateValue();
+  const period=new Date().getHours()<12?"morning":"evening";
+  document.getElementById("driverAttendancePeriod").value=period;
   list.textContent="Biniş listesi yükleniyor...";
   try{
     const {data:passengers,error}=await db.from("profiles").select("id,full_name,morning_enabled,evening_enabled,stop_id").eq("route_id",currentProfile.route_id).eq("role","passenger");
@@ -629,10 +638,10 @@ async function loadDriverAttendance(){
     const ordered=(passengers||[]).slice().sort((a,b)=>(stopOrder[a.stop_id]??999999)-(stopOrder[b.stop_id]??999999)||(a.full_name||"").localeCompare(b.full_name||"","tr"));
     const ids=ordered.map(p=>p.id);let attendance=[];
     if(ids.length){
-      const {data,error:attendanceError}=await db.from("passenger_attendance").select("passenger_id,status,service_period,service_date").in("passenger_id",ids).eq("service_date",serviceDate).eq("service_period",period);
+      const {data,error:attendanceError}=await db.from("passenger_attendance").select("passenger_id,status,service_period,service_date,updated_at").in("passenger_id",ids).eq("service_date",serviceDate).eq("service_period",period);
       if(attendanceError)throw attendanceError;attendance=attendance||[];
     }
-    const statusMap={};attendance.forEach(a=>statusMap[a.passenger_id]=a.status);
+    const statusMap={};attendance.forEach(a=>statusMap[a.passenger_id]=a);
     list.innerHTML="";
     if(!ordered.length){list.textContent="Bu güzergâhta kayıtlı yolcu bulunmuyor.";return}
     let eligibleCount=0;
@@ -643,18 +652,24 @@ async function loadDriverAttendance(){
       const stop=document.createElement("div");stop.className="passenger-detail";stop.textContent="Durak: "+(passenger.stop_id?(stopMap[passenger.stop_id]||"Durak bulunamadı") : "Durak seçilmemiş");card.appendChild(stop);
       if(!eligible){const off=document.createElement("div");off.className="attendance-status attendance-not-boarded";off.textContent=attendancePeriodLabel(period)+" servisini kullanmıyor";card.appendChild(off);list.appendChild(card);return}
       eligibleCount++;
-      let status=statusMap[passenger.id]||"pending";
+      let attendanceRecord=statusMap[passenger.id]||null;
+      let status=attendanceRecord?.status||"pending";
       const statusLine=document.createElement("div");statusLine.className="attendance-status "+(status==="boarded"?"attendance-boarded":status==="not_boarded"?"attendance-not-boarded":"attendance-pending");
-      statusLine.textContent=status==="boarded"?"BİNDİ":status==="not_boarded"?"BİNMEDİ":"HENÜZ İŞARETLENMEDİ";card.appendChild(statusLine);
+      function attendanceStatusText(){
+        const label=status==="boarded"?"BİNDİ":status==="not_boarded"?"BİNMEDİ":"HENÜZ İŞARETLENMEDİ";
+        return label+(attendanceRecord?.updated_at?" — "+new Date(attendanceRecord.updated_at).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}):"");
+      }
+      statusLine.textContent=attendanceStatusText();card.appendChild(statusLine);
       const actions=document.createElement("div");actions.className="attendance-actions";
       const boarded=document.createElement("button");boarded.textContent="Bindi";boarded.className=status==="boarded"?"selected-boarded":"";
       const notBoarded=document.createElement("button");notBoarded.textContent="Binmedi";notBoarded.className=status==="not_boarded"?"selected-not-boarded":"";
       async function saveStatus(nextStatus,button){
         boarded.disabled=true;notBoarded.disabled=true;button.textContent="Kaydediliyor...";
         try{
-          const {error}=await db.from("passenger_attendance").upsert({route_id:currentProfile.route_id,passenger_id:passenger.id,driver_id:currentUser.id,service_date:serviceDate,service_period:period,status:nextStatus,updated_at:new Date().toISOString()},{onConflict:"passenger_id,service_date,service_period"});
+          const recordedAt=new Date().toISOString();
+          const {error}=await db.from("passenger_attendance").upsert({route_id:currentProfile.route_id,passenger_id:passenger.id,driver_id:currentUser.id,service_date:serviceDate,service_period:period,status:nextStatus,updated_at:recordedAt},{onConflict:"passenger_id,service_date,service_period"});
           if(error)throw error;
-          status=nextStatus;statusLine.className="attendance-status "+(status==="boarded"?"attendance-boarded":"attendance-not-boarded");statusLine.textContent=status==="boarded"?"BİNDİ":"BİNMEDİ";
+          status=nextStatus;attendanceRecord={status:nextStatus,updated_at:recordedAt};statusLine.className="attendance-status "+(status==="boarded"?"attendance-boarded":"attendance-not-boarded");statusLine.textContent=attendanceStatusText();
           boarded.className=status==="boarded"?"selected-boarded":"";notBoarded.className=status==="not_boarded"?"selected-not-boarded":"";
           showMsg("driverAttendanceMsg",passenger.full_name+" için biniş durumu kaydedildi.");
         }catch(error){showMsg("driverAttendanceMsg","Biniş durumu kaydedilemedi: "+error.message)}
@@ -879,8 +894,6 @@ function updateWaitCountdown(){
   if(!activeWaitStop||!activeWaitUntil)return;
   const remaining=activeWaitUntil-Date.now();
   if(remaining<=0){
-    const stopName=activeWaitStop.name||"Durak";
-    showDriverAlert(stopName+" durağı için bekleme süresi tamamlandı. Planlanan varış saati geldi.",true);
     activeWaitStop=null;activeWaitUntil=0;return;
   }
   const total=Math.ceil(remaining/1000),minutes=Math.floor(total/60),seconds=total%60;
@@ -888,15 +901,6 @@ function updateWaitCountdown(){
 }
 function processDriverTimeAlerts(){
   if(driverGpsWatchId===null)return;
-  const now=new Date();
-  driverStops.forEach(stop=>{
-    const scheduled=scheduleForStop(stop,now);if(!scheduled)return;
-    const diff=scheduled.getTime()-now.getTime(),key=stopScheduleKey(stop,scheduled);
-    if(diff>0&&diff<=5*60*1000&&!driverFiveMinuteAlerts.has(key)){
-      driverFiveMinuteAlerts.add(key);
-      showDriverAlert("5 DAKİKA UYARISI — "+(stop.name||"Sonraki durak")+"\nPlanlanan varış saati: "+scheduled.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}),true);
-    }
-  });
   updateWaitCountdown();
 }
 function checkDriverStopArrival(latitude,longitude){
@@ -911,9 +915,7 @@ function checkDriverStopArrival(latitude,longitude){
       driverReachedStops.add(key);
       if(scheduled.getTime()>Date.now()){
         activeWaitStop=stop;activeWaitUntil=scheduled.getTime();
-        showDriverAlert("ERKEN VARIŞ — "+(stop.name||"Durak")+"\nDurağa yaklaşık "+Math.round(distance)+" metre mesafedesiniz. Planlanan saat "+scheduled.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})+". Saate kadar yolcuları bekleyin.",true);
-      }else{
-        showDriverAlert("DURAĞA ULAŞILDI — "+(stop.name||"Durak")+"\nGPS durağa yaklaşık "+Math.round(distance)+" metre mesafede olduğunuzu algıladı.",true);
+        showDriverAlert("ERKEN VARIŞ — "+(stop.name||"Durak")+"\nDurağa yaklaşık "+Math.round(distance)+" metre mesafedesiniz. Planlanan saat "+scheduled.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})+". Planlanan saate kadar bekleyin.",true);
       }
       break;
     }
@@ -955,6 +957,9 @@ async function startDriverTracking(){
     sessionDistanceMeters=0;lastDistancePoint=null;lastGpsSavedAt=0;gpsSaveBusy=false;
     gpsSignalState="waiting";gpsFirstFixNotified=false;
     driverFiveMinuteAlerts=new Set();driverReachedStops=new Set();activeWaitStop=null;activeWaitUntil=0;
+    driverTripStarted=false;driverTripCompleted=false;
+    if(driverStops.length<2)throw new Error("Sefer başlangıcı ve bitişi için güzergâhta en az iki durak bulunmalıdır.");
+    if(driverStops.some(stop=>stop.latitude==null||stop.longitude==null))throw new Error("İlk ve son durak dahil tüm durakların GPS koordinatlarını tanımlayın.");
     document.getElementById("driverSessionKm").textContent=formatKm(0);
     document.getElementById("driverLastSaved").textContent="İlk GPS kaydı bekleniyor";
     const missing=driverStops.filter(s=>s.latitude==null||s.longitude==null).length;
@@ -967,7 +972,7 @@ async function startDriverTracking(){
       }
       if(gpsSignalState!=="active"){
         const recovered=gpsSignalState==="weak"||gpsSignalState==="lost";
-        setGpsSignalState("active",recovered?"GPS SİNYALİ GERİ GELDİ — Konum takibi yeniden aktif.":"KONUM ÇALIŞIYOR — GPS bağlantısı kuruldu, konumunuz takip ediliyor.",true);
+        setGpsSignalState("active",recovered?"GPS sinyali geri geldi — Konum takibi yeniden aktif.":"GPS bağlantısı kuruldu, konumunuz takip ediliyor.",false);
         gpsFirstFixNotified=true;
       }
       const point={latitude:c.latitude,longitude:c.longitude,timestamp:position.timestamp||Date.now(),accuracy:c.accuracy};
@@ -981,16 +986,31 @@ async function startDriverTracking(){
       document.getElementById("driverSessionKm").textContent=formatKm(sessionDistanceMeters);
       await saveDriverGPSPosition(point.latitude,point.longitude);
       checkDriverStopArrival(point.latitude,point.longitude);
+      if(driverStops.length>=2){
+        const firstStop=driverStops[0],lastStop=driverStops[driverStops.length-1];
+        const distanceToFirst=(firstStop.latitude==null||firstStop.longitude==null)?Infinity:haversineMeters(point.latitude,point.longitude,Number(firstStop.latitude),Number(firstStop.longitude));
+        const distanceToLast=(lastStop.latitude==null||lastStop.longitude==null)?Infinity:haversineMeters(point.latitude,point.longitude,Number(lastStop.latitude),Number(lastStop.longitude));
+        if(!driverTripStarted&&distanceToFirst<=120){
+          driverTripStarted=true;
+          const tripStatus=document.getElementById("driverGPSStatus");
+          if(tripStatus)tripStatus.textContent="Sefer ilk durakta başladı. Son durağa doğru takip ediliyor.";
+        }else if(driverTripStarted&&!driverTripCompleted&&distanceToLast<=120){
+          driverTripCompleted=true;
+          stopDriverTracking();
+          showDriverAlert("Yolculuk tamamlanmıştır.",true);
+          showMsg("driverGPSStatus","Yolculuk tamamlanmıştır. Son durak: "+(lastStop.name||"Son durak")+". Ölçülen mesafe: "+formatKm(sessionDistanceMeters)+".");
+        }
+      }
       processDriverTimeAlerts();
       const status=document.getElementById("driverGPSStatus");
       if(status&&status.textContent.indexOf("kaydedilemedi")===-1)status.textContent="GPS aktif. Son konum: "+point.latitude.toFixed(6)+", "+point.longitude.toFixed(6)+" (±"+Math.round(c.accuracy)+" m).";
     },error=>{
       const message="GPS hatası: "+geoErrorText(error);
       if(error.code===1){
-        setGpsSignalState("lost","KONUM İZNİ YOK — "+geoErrorText(error),true);
+        setGpsSignalState("lost","Konum izni yok — "+geoErrorText(error),false);
         stopDriverTracking();showMsg("driverGPSStatus",message);
       }else{
-        setGpsSignalState("lost","GPS SİNYALİ KESİLDİ — "+geoErrorText(error)+". Sinyal geldiğinde takip otomatik devam eder.",gpsSignalState!=="lost");
+        setGpsSignalState("lost","GPS sinyali kesildi — "+geoErrorText(error)+". Sinyal geldiğinde takip otomatik devam eder.",false);
         showMsg("driverGPSStatus",message);
       }
     },{enableHighAccuracy:true,maximumAge:0,timeout:20000});
